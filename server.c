@@ -90,6 +90,8 @@ int main(int argc,char** argv)
 
 	do {
 		memset(buffer, 0, SIZE);
+        memset(nlh, 0, NLMSG_SPACE(SIZE));
+
         read_bytes = recv(client_sock, buffer, SIZE, 0);
         printf("%s %d\n", buffer, read_bytes);
 		strcpy(NLMSG_DATA(nlh), buffer);
@@ -105,9 +107,19 @@ int main(int argc,char** argv)
 			perror("netlink sendmsg");
 			return -1;
 		}
+        
+        /* Read message from the kernel */
+        if(recvmsg(nl_fd, &msg, 0) < 0) {
+            perror("netlink recvmsg");
+            return -1;
+        }
 
-	} while(read_bytes > 0);
+        printf("%s\n", NLMSG_DATA(nlh));
 
+	} while(1);
+    
+    close(client_sock);
+    close(nl_fd);
 	return 0;
 
 }
