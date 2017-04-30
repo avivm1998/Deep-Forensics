@@ -17,17 +17,13 @@ void cleanup_module(void);
 static void nl_recv_msg(struct sk_buff *skb);
 
 #define SUCCESS 0
-#define DEVICE_NAME "linux_project" /* Dev name as it appears in /proc/devices */
-#define BUF_LEN 80  /* Max length of the message from the device */
 #define DEBUG 1
 #define NETLINK_USER 31
-#define EMPTY_MESSAGE "NO_DATA"
+
 
 /*
 * Global variables are declared as static, so are global within the file.
 */
-static char msg[BUF_LEN]; /* The msg the device will give when asked */
-static char *msg_Ptr;
 
 struct sock *nl_sk = NULL; /* The netlink socket */
 
@@ -76,12 +72,18 @@ static void nl_recv_msg(struct sk_buff *skb) {
 #endif
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
-    int msg_size = strlen(msg);
+    int msg_size;
     int pid;
+    char* message = "Hello from kernel";
+    int res = 0;
 
-    memset(msg, 0, BUF_LEN);
+    msg_size = strlen(message);
 
     nlh = (struct nlmsghdr *)skb->data;
+#ifdef DEBUG
+    printk(KERN_INFO "Userspace message received is: %s\n", (char*)nlmsg_data(nlh));
+#endif
+
     pid = nlh->nlmsg_pid;
 
     skb_out = nlmsg_new(msg_size, 0);
@@ -92,13 +94,9 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
-    strncpy(nlmsg_data(nlh), msg, msg_size);
+    strncpy(nlmsg_data(nlh), message, msg_size);
 
-    int res = nlmsg_unicast(nl_sk, skb_out, pid);
+    //res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
         printk(KERN_ERR "Error sending the message\n");
-
-#ifdef DEBUG
-    printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
-#endif
 }
