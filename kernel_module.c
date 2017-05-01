@@ -19,7 +19,7 @@ static void nl_recv_msg(struct sk_buff *skb);
 #define SUCCESS 0
 #define DEBUG 1
 #define NETLINK_USER 31
-
+#define EMPTY_MESSAGE "NO_DATA"
 
 /*
 * Global variables are declared as static, so are global within the file.
@@ -72,18 +72,16 @@ static void nl_recv_msg(struct sk_buff *skb) {
 #endif
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
+    char* msg = "Hello from kernel";
     int msg_size;
     int pid;
-    char* message = "Hello from kernel";
-    int res = 0;
+    int res;
 
-    msg_size = strlen(message);
+    msg_size = strlen(msg);
+
+    memset(msg, 0, msg_size);
 
     nlh = (struct nlmsghdr *)skb->data;
-#ifdef DEBUG
-    printk(KERN_INFO "Userspace message received is: %s\n", (char*)nlmsg_data(nlh));
-#endif
-
     pid = nlh->nlmsg_pid;
 
     skb_out = nlmsg_new(msg_size, 0);
@@ -94,9 +92,13 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
-    strncpy(nlmsg_data(nlh), message, msg_size);
+    strncpy(nlmsg_data(nlh), msg, msg_size);
 
-    //res = nlmsg_unicast(nl_sk, skb_out, pid);
+    res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
         printk(KERN_ERR "Error sending the message\n");
+
+#ifdef DEBUG
+    printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
+#endif
 }
