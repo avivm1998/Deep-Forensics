@@ -50,17 +50,25 @@ static void nl_recv_msg(struct sk_buff *skb) {
 #endif
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
-    char* msg = "Hello from kernel";
+    char msg[256] = {0};
     int msg_size;
     int pid;
     int res;
+    void* ram_data;
 
     msg_size = strlen(msg);
-
     memset(msg, 0, msg_size);
 
     nlh = (struct nlmsghdr *)skb->data;
     pid = nlh->nlmsg_pid;
+
+    /* change the code here */
+
+    ram_data = phys_to_virt(0x0000);
+
+    strncpy(msg,(char*)ram_data,1);
+    msg_size = strlen(msg);
+    /* -------------------- */
 
     skb_out = nlmsg_new(msg_size, 0);
     if(!skb_out){
@@ -78,5 +86,6 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
 #ifdef DEBUG
     printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
+    
 #endif
 }
