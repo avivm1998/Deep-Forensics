@@ -54,7 +54,10 @@ static void nl_recv_msg(struct sk_buff *skb) {
     int msg_size;
     int pid;
     int res;
-    void* ram_data;
+    int i;
+
+    int start = 0x0000;
+    int length = 100;
 
     msg_size = strlen(msg);
     memset(msg, 0, msg_size);
@@ -62,12 +65,12 @@ static void nl_recv_msg(struct sk_buff *skb) {
     nlh = (struct nlmsghdr *)skb->data;
     pid = nlh->nlmsg_pid;
 
+    
+    strcpy(msg, nlmsg_data(nlh));
+    parse_input(msg, &start, &length);
+
     /* change the code here */
-
-    ram_data = phys_to_virt(0x0000);
-
-    strncpy(msg,(char*)ram_data,1);
-    msg_size = strlen(msg);
+    msg_size = copy_data_from_memory(start, length, msg, 256);
     /* -------------------- */
 
     skb_out = nlmsg_new(msg_size, 0);
@@ -78,7 +81,12 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
-    strncpy(nlmsg_data(nlh), msg, msg_size);
+
+    for (i = 0; i < msg_size; ++i)
+    { 
+        ((char*)nlmsg_data(nlh))[i] = msg[i];
+        printk(KERN_INFO "%d %x %c",i,msg[i],msg[i]);
+    }
 
     res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
@@ -88,4 +96,23 @@ static void nl_recv_msg(struct sk_buff *skb) {
     printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
     
 #endif
+}
+
+void parse_input(char* input, int* start, int* length){
+    sscanf(input,"%08p,%08x",start,length);
+}
+
+int copy_data_from_memory(int start_address, int length, char* data, int buffer_length){
+    void* ram_data;
+    int count = 0;
+
+    for (ram_data = 0; count < length && count < buffer_length; ram_data++ , count++)
+    {
+        if((long unsigned int)ram_data % (long unsigned int)PAGE_SIZE == 0){
+            ram_data = phys_to_virt(start_address+count);
+        }
+        data[count] = *((char*)(ram_data));    
+    }
+
+    return count;
 }
