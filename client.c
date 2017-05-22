@@ -12,11 +12,11 @@ void init_socket(int* sockfd, struct hostent** he, struct sockaddr_in* their_add
     }
 
     memset(their_addr, 0, sizeof(struct sockaddr_in));
-    (*their_addr).sin_family = AF_INET;      /* host byte order */
-    (*their_addr).sin_port = htons(PORT);    /* short, network byte order */
-    (*their_addr).sin_addr = *((struct in_addr *)(*he)->h_addr);
+    their_addr->sin_family = AF_INET;      /* host byte order */
+    their_addr->sin_port = htons(PORT);    /* short, network byte order */
+    their_addr->sin_addr = *((struct in_addr *)(*he)->h_addr);
 
-    if (connect(*sockfd, (struct sockaddr *)&(*their_addr), sizeof(struct sockaddr)) == -1) {
+    if (connect(*sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1) {
         perror("connect");
         exit(1);
     }
@@ -33,7 +33,7 @@ int main()
 
     while (1) {
 	   printf("Enter string: ");
-	   scanf("%s",buf);
+	   fgets(buf, MAXDATASIZE, stdin);
 
 	   send(sockfd,buf,strlen(buf),0);
     }
