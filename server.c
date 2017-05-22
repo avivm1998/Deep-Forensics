@@ -110,18 +110,15 @@ int main(int argc,char** argv)
 	struct iovec iov_in = { 0 };
 	struct msghdr msg = { 0 };
 	struct msghdr msg_in = { 0 };
+	int i,j,k;
 	
 	init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh, &nlh_in, &iov, &iov_in, &msg, &msg_in);
 	init_tcp_socket(&sock_fd, &client_fd, &addr, &client);
 
-	//memset(buffer, 0, MAX_PAYLOAD);
     read_bytes = recv(client_fd, buffer, MAX_PAYLOAD, 0);
 
-	strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
-	printf("%s\n", (char*)NLMSG_DATA(nlh));
+	strcpy(NLMSG_DATA(nlh), "0x0000,0x0100");
 
-	//memset(&iov, 0, sizeof(iov));
-	//memset(&msg, 0, sizeof(msg));
 
 	iov.iov_base = (void *)nlh;
 	iov.iov_len = nlh->nlmsg_len;
@@ -140,12 +137,30 @@ int main(int argc,char** argv)
 
 	/* Read message from kernel */
 	res = recvmsg(nl_fd, &msg, 0);
-	printf("%d\n",res);
 	if(res < 0) {
 		perror("recvmsg");
 		return -1;
 	}
-	printf("Received message payload: %s\n", (char*)NLMSG_DATA(nlh));
+
+	for (i = 0; i < res; ++i)
+	{
+		buffer[i] = ((char*)NLMSG_DATA(nlh))[i];
+	}
+
+	printf("Address:\tData:\n");
+	for (i = 0; i < res; i+=16)
+	{
+		printf("%08x\t",i);
+		for (j = 0; j < 2; ++j)
+		{
+			for (k = 0; k < 8; ++k)
+			{
+				printf("%02x|",buffer[i+j*8+k]&0xff);
+			}
+			printf("\t");
+		}
+		printf("\n");
+	}
 	close(nl_fd);
 
 	return 0;
