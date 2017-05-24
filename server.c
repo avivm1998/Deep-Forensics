@@ -89,6 +89,64 @@ void init_tcp_socket(int* sock_fd, int* client_fd, struct sockaddr_in* addr, str
     }
 }
 
+void parse_input(mem_dump_request* request, char* input) {
+	int i = 0;
+	const char delimiter[] = " ";
+	char* token = NULL;
+
+	request->starting_address = 0;
+	request->length = 0;
+
+	token = strtok(input, delimiter);
+
+	if(strcmp(token, "dump") == 0) {
+		while(token != NULL) {
+			token = strtok(NULL, delimiter);
+
+			if(strcmp(token, "-address") == 0) {
+				token = strtok(NULL, delimiter);
+				
+				if(request->starting_address == 0) {
+					request->starting_address = (int)strtol(token, NULL, 0);
+				}
+
+				else {
+					if((int)strtol(token, NULL, 0) < request->starting_address) 
+						goto invalid_input;
+
+					request->length = (int)strtol(token, NULL, 0) - request->starting_address;
+					token = NULL;
+				} 
+			}
+
+			else if(strcmp(token, "-length") == 0) {
+				token = strtok(NULL, delimiter);
+
+				if(atoi(token) <= 0) 
+					goto invalid_input;
+
+				request->length = atoi(token);
+				token = NULL;
+			}
+
+			else {
+				goto invalid_input;
+			}
+		}	
+	}
+
+	else {
+		goto invalid_input;
+	}
+
+	return;
+
+invalid_input:
+	printf("Invalid Input!\n");
+	exit(1);
+	
+}
+
 int main(int argc,char** argv)
 {
 	int sock_fd = 0;
@@ -99,8 +157,6 @@ int main(int argc,char** argv)
 	int read_bytes = 0;
 	char buffer[MAX_PAYLOAD] = { 0 };
 
-	int res;
-
 	int nl_fd = 0;
 	struct sockaddr_nl src_addr = { 0 };
 	struct sockaddr_nl dest_addr = { 0 };
@@ -110,15 +166,23 @@ int main(int argc,char** argv)
 	struct iovec iov_in = { 0 };
 	struct msghdr msg = { 0 };
 	struct msghdr msg_in = { 0 };
-	int i,j,k;
-	
+
+	mem_dump_request request = { 0 };
+
 	init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh, &nlh_in, &iov, &iov_in, &msg, &msg_in);
 	init_tcp_socket(&sock_fd, &client_fd, &addr, &client);
 
+	//memset(buffer, 0, MAX_PAYLOAD);
     read_bytes = recv(client_fd, buffer, MAX_PAYLOAD, 0);
 
-	strcpy(NLMSG_DATA(nlh), "0x0000,0x0100");
+	parse_input(&request, buffer);
 
+	//memset(&iov, 0, sizeof(iov));
+	//memset(&msg, 0, sizeof(msg));
+	memset(buffer, 0, MAX_PAYLOAD);
+	sprintf(buffer,"%010p,%08x", request.starting_address, request.length);
+	puts(buffer);
+	strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
 
 	iov.iov_base = (void *)nlh;
 	iov.iov_len = nlh->nlmsg_len;
@@ -128,41 +192,22 @@ int main(int argc,char** argv)
 	msg.msg_iovlen = 1;
 
 	printf("Sending message to kernel\n");
-	res = sendmsg(nl_fd,&msg, 0);
-	if(res < 0) {
+	
+	if(sendmsg(nl_fd, &msg, 0) < 0) {
 		perror("sendmsg");
 		return -1;
 	}
+
 	printf("Waiting for message from kernel\n");
 
 	/* Read message from kernel */
-	res = recvmsg(nl_fd, &msg, 0);
-	if(res < 0) {
+	if(recvmsg(nl_fd, &msg, 0) < 0) {
 		perror("recvmsg");
 		return -1;
 	}
 
-	for (i = 0; i < res; ++i)
-	{
-		buffer[i] = ((char*)NLMSG_DATA(nlh))[i];
-	}
-
-	printf("Address:\tData:\n");
-	for (i = 0; i < res; i+=16)
-	{
-		printf("%08x\t",i);
-		for (j = 0; j < 2; ++j)
-		{
-			for (k = 0; k < 8; ++k)
-			{
-				printf("%02x|",buffer[i+j*8+k]&0xff);
-			}
-			printf("\t");
-		}
-		printf("\n");
-	}
+	printf("Received message payload: %s\n", (char*)NLMSG_DATA(nlh));
+	
 	close(nl_fd);
-
 	return 0;
-
 }
