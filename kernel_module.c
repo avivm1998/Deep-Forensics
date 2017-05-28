@@ -82,12 +82,6 @@ static void nl_recv_msg(struct sk_buff *skb) {
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
 
-    for (i = 0; i < msg_size; ++i)
-    { 
-        ((char*)nlmsg_data(nlh))[i] = msg[i];
-        printk(KERN_INFO "%d %x %c",i,msg[i],msg[i]);
-    }
-
     res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
         printk(KERN_ERR "Error sending the message\n");
