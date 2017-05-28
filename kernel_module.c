@@ -1,33 +1,8 @@
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/random.h>
-#include <asm/uaccess.h>    /* for put_user */
-#include <linux/module.h>
-#include <net/sock.h> 
-#include <linux/netlink.h>
-#include <linux/skbuff.h> 
-
-/*
-* Prototypes − this would normally go in a .h file
-*/
-
-int init_module(void);
-void cleanup_module(void);
-static void nl_recv_msg(struct sk_buff *skb);
-
-#define SUCCESS 0
-#define DEVICE_NAME "linux_project" /* Dev name as it appears in /proc/devices */
-#define BUF_LEN 80  /* Max length of the message from the device */
-#define DEBUG 1
-#define NETLINK_USER 31
-#define EMPTY_MESSAGE "NO_DATA"
+#include "kernel_module.h"
 
 /*
 * Global variables are declared as static, so are global within the file.
 */
-static char msg[BUF_LEN]; /* The msg the device will give when asked */
-static char *msg_Ptr;
 
 struct sock *nl_sk = NULL; /* The netlink socket */
 
@@ -69,20 +44,34 @@ void cleanup_module(void) {
 /*
 * Methods
 */
-
 static void nl_recv_msg(struct sk_buff *skb) {
 #ifdef DEBUG
     printk(KERN_INFO "nl_recv_msg\n");
 #endif
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
-    int msg_size = strlen(msg);
+    char msg[256] = {0};
+    int msg_size;
     int pid;
+    int res;
+    int i;
 
-    memset(msg, 0, BUF_LEN);
+    int start = 0x0000;
+    int length = 100;
+
+    msg_size = strlen(msg);
+    memset(msg, 0, msg_size);
 
     nlh = (struct nlmsghdr *)skb->data;
     pid = nlh->nlmsg_pid;
+
+    
+    strcpy(msg, nlmsg_data(nlh));
+    parse_input(msg, &start, &length);
+
+    /* change the code here */
+    msg_size = copy_data_from_memory(start, length, msg, 256);
+    /* -------------------- */
 
     skb_out = nlmsg_new(msg_size, 0);
     if(!skb_out){
@@ -92,13 +81,32 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
-    strncpy(nlmsg_data(nlh), msg, msg_size);
 
-    int res = nlmsg_unicast(nl_sk, skb_out, pid);
+    res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
         printk(KERN_ERR "Error sending the message\n");
 
 #ifdef DEBUG
     printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
+    
 #endif
+}
+
+void parse_input(char* input, int* start, int* length){
+    sscanf(input,"%08p,%08x",start,length);
+}
+
+int copy_data_from_memory(int start_address, int length, char* data, int buffer_length){
+    void* ram_data;
+    int count = 0;
+
+    for (ram_data = 0; count < length && count < buffer_length; ram_data++ , count++)
+    {
+        if((long unsigned int)ram_data % (long unsigned int)PAGE_SIZE == 0){
+            ram_data = phys_to_virt(start_address+count);
+        }
+        data[count] = *((char*)(ram_data));    
+    }
+
+    return count;
 }
