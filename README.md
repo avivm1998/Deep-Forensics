@@ -9,14 +9,9 @@ Set up:
 6. Open the other terminal and run the commmand: ./client
 
 Usage:
-Our current system is as follows:
+Our current system works as follows:
 
-
-~~~~~~~~~~~~~~~                     ~~~~~~~~~~~~~~~                       ~~~~~~~~~~~~~~~
-~             ~     TCP             ~             ~       NETLINK         ~             ~
-~    client   ~    <------------>   ~    server   ~      <------------>   ~    kernel   ~
-~             ~                     ~             ~                       ~             ~
-~~~~~~~~~~~~~~~                     ~~~~~~~~~~~~~~~                       ~~~~~~~~~~~~~~~
+CLIENT   <----- TCP ----->   SERVER   <----- NETLINK ----->   KERNEL
 
 
 API:
