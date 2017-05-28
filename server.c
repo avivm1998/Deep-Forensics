@@ -99,11 +99,11 @@ void parse_input(mem_dump_request* request, char* input) {
 
 	token = strtok(input, delimiter);
 
-	if(strcmp(token, "dump") == 0) {
+	if(strcmp(token, "d") == 0) {
 		while(token != NULL) {
 			token = strtok(NULL, delimiter);
 
-			if(strcmp(token, "-address") == 0) {
+			if(strcmp(token, "-a") == 0) {
 				token = strtok(NULL, delimiter);
 				
 				if(request->starting_address == 0) {
@@ -119,7 +119,7 @@ void parse_input(mem_dump_request* request, char* input) {
 				} 
 			}
 
-			else if(strcmp(token, "-length") == 0) {
+			else if(strcmp(token, "-l") == 0) {
 				token = strtok(NULL, delimiter);
 
 				if(atoi(token) <= 0) 
