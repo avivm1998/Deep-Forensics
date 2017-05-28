@@ -26,6 +26,7 @@ int main()
 {
     int sockfd, numbytes;  
     char buf[MAXDATASIZE];
+    char response[32];
     struct hostent *he;
     struct sockaddr_in their_addr; /* connector's address information */
 
@@ -35,7 +36,10 @@ int main()
 	   printf("Enter string: ");
 	   fgets(buf, MAXDATASIZE, stdin);
 
-	   send(sockfd,buf,strlen(buf),0);
+	   send(sockfd, buf, strlen(buf), 0);
+       recv(sockfd, response, 32, 0);
+
+       printf("Message from the server: %s\n", response);
     }
 
     close(sockfd);
