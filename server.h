@@ -23,4 +23,5 @@ int main(int argc,char** argv);
 void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct sockaddr_nl* dest_addr, struct nlmsghdr** nlh, 
 	struct nlmsghdr** nlh_in, struct iovec* iov, struct iovec* iov_in, struct msghdr* msg, struct msghdr* msg_in);
 void init_tcp_socket(int* sock_fd, int* client_fd, struct sockaddr_in* addr, struct sockaddr_in* client);
+int split(char*** parts, const char* str, const char* delimiter);
 char* parse_input(mem_dump_request* request, char* input);
