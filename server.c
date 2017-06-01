@@ -88,57 +88,81 @@
 	       	exit(1);
 	    }
 	}
+	
+	// Splits a given string with a given delimiter and fills the parts to the given (by address) 
+	// string array, The function also returns the size of the array.
+	// The array and all of its strings are dynamically allocated and should be freed after use.
+	int split(char*** parts, const char* str, const char* delimiter) {
+	    int i = 0;
+	    int counter = 0;
+	    char* token = NULL;
+	    char* buffer = NULL;
+	    char* ptr = NULL;
+
+	    buffer = strdup(str);
+	    ptr = buffer;
+	    size_t nlen = strlen(delimiter);
+
+	    while (ptr != NULL) {
+		ptr = strstr (ptr, delimiter);
+
+		if (ptr != NULL) {
+		    counter++;
+		    ptr += nlen;
+		}
+	    }
+
+	    (*parts) = (char**)calloc(counter + 1, sizeof(char*));
+
+	    token = strtok(buffer, delimiter);
+
+	    i = 0;
+	    while(token != NULL) {
+		(*parts)[i++] = strdup(token);
+		token = strtok(NULL, delimiter);
+	    }
+
+	    free(buffer);
+
+	    return counter + 1;
+	}
 
 	char* parse_input(mem_dump_request* request, char* input) {
+		int size = 0;
 		int i = 0;
-		const char delimiter[] = " ";
-		char* token = NULL;
-
+		char** parts = NULL;
+		
+		size = split(&parts, input, " ");
+		
 		request->starting_address = -1;
 		request->length = -1;
-
-		token = strtok(input, delimiter);	
-
-		if(strcmp(token, "d") == 0) {
-			while(token != NULL) {
-				token = strtok(NULL, delimiter);
-
-				if(strcmp(token, "-a") == 0) {
-					token = strtok(NULL, delimiter);
-					
-					if(request->starting_address == -1) {
-						request->starting_address = (int)strtol(token, NULL, 0);
-					}
-
-					else {
-						if((int)strtol(token, NULL, 0) < request->starting_address) 
-							goto invalid_input;
-
-						request->length = (int)strtol(token, NULL, 0) - request->starting_address;
-						token = NULL;
-					} 
+		
+		if(strcmp(parts[0], "d") == 0) {
+			if(strcmp(parts[1], "-a") == 0) {
+				request->starting_address = (int)strtol(parts[2], NULL, 0);
+				
+				if(strcmp(parts[3], "-a") == 0) {
+					request->length = (int)strtol(parts[4], NULL, 0) - request->starting_address;
 				}
-
-				else if(strcmp(token, "-l") == 0) {
-					token = strtok(NULL, delimiter);
-
-					if(atoi(token) <= 0) 
-						goto invalid_input;
-
-					request->length = atoi(token);
-					token = NULL;
+				
+				else if(strcmp(parts[3], "-l") == 0) {
+					request->length = atoi(parts[4]);
 				}
-
+				
 				else {
 					goto invalid_input;
 				}
-			}	
+			}
+			
+			else {
+				goto invalid_input;
+			}
 		}
-
+		
 		else {
 			goto invalid_input;
 		}
-
+		
 		return "Command received successfully.";
 
 	invalid_input:
