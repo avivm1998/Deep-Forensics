@@ -22,24 +22,72 @@ void init_socket(int* sockfd, struct hostent** he, struct sockaddr_in* their_add
     }
 }
 
+void print_mem(uintptr_t starting_address, int length, unsigned char* data) {
+    int i = 0;            
+    int j = 0;
+                
+    for (i = 0; i < length;) {     
+        printf("%10p\t", starting_address + i);
+        
+        for(j = 0; j < 8; j++) {
+            if(i + j < length)
+                printf("%02x ",data[i+j]);
+            else
+                printf(".. ");
+        }
+        
+        printf("\t");
+        
+        for(j = 0; j < 8; j++) {
+            if(i+j < length) {
+                if(isprint(data[i+j]))
+                    printf("%c",data[i+j]);
+                                                                                                else
+                    printf(".");
+            }
+            
+            else
+                printf(".");
+        }
+        
+        printf("\n");
+        i += 8;
+    }
+}
+
 int main()
 {
-    int sockfd, numbytes;  
-    char buf[MAXDATASIZE];
-    char response[32];
-    struct hostent *he;
-    struct sockaddr_in their_addr; /* connector's address information */
+    int sockfd = 0;
+    int numbytes = 0; 
+    uintptr_t starting_address = 0;
+    int length = 0;
+    char response[32] = {0};
+    char buffer[MAXDATASIZE] = { 0 };
+    struct hostent *he = NULL;
+    struct sockaddr_in their_addr = { 0 }; /* connector's address information */
 
     init_socket(&sockfd, &he, &their_addr);
 
     while (1) {
-	   printf("Enter string: ");
-	   fgets(buf, MAXDATASIZE, stdin);
+	   printf(">");
+	   fgets(buffer, MAXDATASIZE, stdin);
 
-	   send(sockfd, buf, strlen(buf), 0);
+	   send(sockfd, buffer, strlen(buffer), 0);
        recv(sockfd, response, 32, 0);
+       
+       if(strcmp(response, "Invalid input.") == 0)
+            continue;
+       
+       memset(buffer, 0, MAXDATASIZE);
 
-       printf("Message from the server: %s\n", response);
+       recv(sockfd, &starting_address, sizeof(starting_address), 0 );
+       recv(sockfd, &length, sizeof(length), 0);
+       recv(sockfd, buffer, MAXDATASIZE, 0);
+        
+       printf("%010p, %08x\n", starting_address, length);
+
+       print_mem(starting_address, length, buffer);
+       
     }
 
     close(sockfd);
