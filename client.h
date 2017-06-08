@@ -7,6 +7,7 @@
 #include <netinet/in.h> 
 #include <sys/socket.h> 
 #include <unistd.h>
+#include "dataStruct.h"
 
 #define PORT 1202    /* the port client will be connecting to */
 #define MAXDATASIZE 100 /* max number of bytes we can get at once */

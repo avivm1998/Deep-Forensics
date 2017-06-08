@@ -6,11 +6,6 @@
 
 		int optval = 1;
 
-		/*memset(src_addr, 0, sizeof(*src_addr));
-		memset(dest_addr, 0, sizeof(*dest_addr));
-		memset(iov, 0, sizeof(*iov));
-		memset(msg, 0, sizeof(*msg));*/
-
 		if ((*nl_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER)) < 0) {
 			perror("netlink socket");
 			exit(1);
@@ -38,24 +33,6 @@
 	    (*nlh)->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
 	    (*nlh)->nlmsg_pid = getpid();
 	    (*nlh)->nlmsg_flags = 0;
-
-	    /*iov->iov_base = (void *)(*nlh);
-	    iov->iov_len = (*nlh)->nlmsg_len;
-	    msg->msg_name = (void *)dest_addr;
-	    msg->msg_namelen = sizeof(*dest_addr);
-	    msg->msg_iov = iov;
-	    msg->msg_iovlen = 1;*/
-	                                            
-	    /**nlh_in = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
-	    memset(*nlh_in, 0, NLMSG_SPACE(MAX_PAYLOAD));
-	    (*nlh_in)->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
-	    (*nlh_in)->nlmsg_pid = getpid();
-	    (*nlh_in)->nlmsg_flags = 0;
-
-	    iov_in->iov_base = (void *)(*nlh_in);
-	    iov_in->iov_len = (*nlh_in)->nlmsg_len;
-	    msg_in->msg_iov = iov_in;
-	    msg_in->msg_iovlen = 1;*/
 	}
 
 	/* Initializing the socket that connects to the client */
@@ -88,44 +65,51 @@
 	       	exit(1);
 	    }
 	}
+
+    char* send_netlink_request(mem_dump_request request) {
+        int size = 0;
+        int recv_bytes = 0;
+        char buffer[MAX_PAYLOAD] = { 0 };
+
+        int nl_fd = 0;
+        struct sockaddr_nl src_addr = { 0 };
+        struct sockaddr_nl dest_addr = { 0 };
+        struct nlmsghdr *nlh = NULL;
+        struct nlmsghdr *nlh_in = NULL;
+        struct iovec iov = { 0 };
+        struct iovec iov_in = { 0 };
+        struct msghdr msg = { 0 };
+        struct msghdr msg_in = { 0 };
+        int i;
+
+        init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh, &nlh_in, &iov, &iov_in, &msg, &msg_in);
+
+        sprintf(buffer,"%010p,%08x", request.starting_address, request.length);
+        strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
+
+        iov.iov_base = (void *)nlh;
+        iov.iov_len = nlh->nlmsg_len;
+        msg.msg_name = (void *)&dest_addr;
+        msg.msg_namelen = sizeof(dest_addr);
+        msg.msg_iov = &iov;
+        msg.msg_iovlen = 1;
+
+        if(sendmsg(nl_fd, &msg, 0) < 0) {
+            perror("sendmsg");
+            return NULL;
+        }
+
+        if(recvmsg(nl_fd, &msg, 0) < 0) {
+            perror("recvmsg");
+            return NULL;
+        }
+
+        close(nl_fd);
+
+        return (char*)NLMSG_DATA(nlh);
+    }
+
 	
-	// Splits a given string with a given delimiter and fills the parts to the given (by address) 
-	// string array, The function also returns the size of the array.
-	// The array and all of its strings are dynamically allocated and should be freed after use.
-	int split(char*** parts, const char* str, const char* delimiter) {
-	    int i = 0;
-	    int counter = 0;
-	    char* token = NULL;
-	    char* buffer = NULL;
-	    char* ptr = NULL;
-
-	    buffer = strdup(str);
-	    ptr = buffer;
-	    size_t nlen = strlen(delimiter);
-
-	    while (ptr != NULL) {
-		ptr = strstr (ptr, delimiter);
-
-		if (ptr != NULL) {
-		    counter++;
-		    ptr += nlen;
-		}
-	    }
-
-	    (*parts) = (char**)calloc(counter + 1, sizeof(char*));
-
-	    token = strtok(buffer, delimiter);
-
-	    i = 0;
-	    while(token != NULL) {
-		(*parts)[i++] = strdup(token);
-		token = strtok(NULL, delimiter);
-	    }
-
-	    free(buffer);
-
-	    return counter + 1;
-	}
 
 	char* parse_input(mem_dump_request* request, char* input) {
 		int size = 0;
@@ -173,67 +157,38 @@
 
 	int main(int argc,char** argv)
 	{
-		int sock_fd = 0;
-		int client_fd = 0;
-		struct sockaddr_in addr = { 0 }; 
-		struct sockaddr_in client = { 0 };
-		int size = 0;
-		int read_bytes = 0;
-		char* response = NULL;
-		char buffer[MAX_PAYLOAD] = { 0 };
+        int sock_fd = 0;
+        int client_fd = 0;
+        char* response = NULL;
+        char* net_res = NULL;
+        struct sockaddr_in addr = { 0 }; 
+        struct sockaddr_in client = { 0 };
+        int read_bytes = 0;
+        char buffer[MAX_PAYLOAD] = { 0 };
+        int temp = 0;
+        mem_dump_request request;
 
-		int nl_fd = 0;
-		struct sockaddr_nl src_addr = { 0 };
-		struct sockaddr_nl dest_addr = { 0 };
-		struct nlmsghdr *nlh = NULL;
-		struct nlmsghdr *nlh_in = NULL;
-		struct iovec iov = { 0 };
-		struct iovec iov_in = { 0 };
-		struct msghdr msg = { 0 };
-		struct msghdr msg_in = { 0 };
-
-		mem_dump_request request = { 0 };
-
-		init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh, &nlh_in, &iov, &iov_in, &msg, &msg_in);
 		init_tcp_socket(&sock_fd, &client_fd, &addr, &client);
 
-		//memset(buffer, 0, MAX_PAYLOAD);
-	    read_bytes = recv(client_fd, buffer, MAX_PAYLOAD, 0);
+        while(1) {
+            read_bytes = recv(client_fd, buffer, MAX_PAYLOAD, 0);
+            if(read_bytes <= 0)
+                break;
 
-		response = parse_input(&request, buffer);
-		send(client_fd, response, strlen(response) + 1, 0);
+		    response = parse_input(&request, buffer);
+            send(client_fd, response, strlen(response) + 1, 0);
 
-		//memset(&iov, 0, sizeof(iov));
-		//memset(&msg, 0, sizeof(msg));
-		memset(buffer, 0, MAX_PAYLOAD);
-		sprintf(buffer,"%010p,%08x", request.starting_address, request.length);
-		puts(buffer);
-		strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
+            net_res = send_netlink_request(request);
+            
+            memset(buffer, 0, MAX_PAYLOAD);
+            sprintf(buffer,"%10p %08x",request.starting_address,request.length);
+            send(client_fd,buffer,strlen(buffer)+1,0);
 
-		iov.iov_base = (void *)nlh;
-		iov.iov_len = nlh->nlmsg_len;
-		msg.msg_name = (void *)&dest_addr;
-		msg.msg_namelen = sizeof(dest_addr);
-		msg.msg_iov = &iov;
-		msg.msg_iovlen = 1;
-
-		printf("Sending message to kernel\n");
+            temp = send(client_fd,net_res-1,request.length+1,0);
+        }
 		
-		if(sendmsg(nl_fd, &msg, 0) < 0) {
-			perror("sendmsg");
-			return -1;
-		}
+		close(client_fd);
+        close(sock_fd);
 
-		printf("Waiting for message from kernel\n");
-
-		/* Read message from kernel */
-		if(recvmsg(nl_fd, &msg, 0) < 0) {
-			perror("recvmsg");
-			return -1;
-		}
-
-		printf("Received message payload: %s\n", (char*)NLMSG_DATA(nlh));
-		
-		close(nl_fd);
 		return 0;
 	}

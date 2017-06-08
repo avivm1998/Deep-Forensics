@@ -69,6 +69,7 @@ static void nl_recv_msg(struct sk_buff *skb) {
     strcpy(msg, nlmsg_data(nlh));
     parse_input(msg, &start, &length);
 
+
     /* change the code here */
     msg_size = copy_data_from_memory(start, length, msg, 256);
     /* -------------------- */
@@ -82,6 +83,11 @@ static void nl_recv_msg(struct sk_buff *skb) {
     nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
     NETLINK_CB(skb_out).dst_group = 0;
 
+    for (i = 0; i < msg_size; ++i)
+    {
+        ((char*)nlmsg_data(nlh))[i] = msg[i];
+    }
+
     res = nlmsg_unicast(nl_sk, skb_out, pid);
     if(res < 0)
         printk(KERN_ERR "Error sending the message\n");
@@ -92,8 +98,36 @@ static void nl_recv_msg(struct sk_buff *skb) {
 #endif
 }
 
+
 void parse_input(char* input, int* start, int* length){
-    sscanf(input,"%08p,%08x",start,length);
+    char buf1[64] = {0};
+    char buf2[64] = {0};
+    int j = 0;
+    int i = 0;
+    int temp = 0;
+
+    while(input[i] != ','){
+        buf1[j] = input[i];
+        j++;
+        i++;
+        
+    }
+    buf1[j] = '\0';
+    i++;
+
+    j = 0;
+    while(input[i] != '\0'){
+        buf2[j] = input[i];
+        j++;
+        i++;
+    }
+    buf2[j] = '\0';
+
+
+    temp = kstrtol(buf1, 16, start);
+
+    temp = kstrtol(buf2, 16, length);
+
 }
 
 int copy_data_from_memory(int start_address, int length, char* data, int buffer_length){
@@ -105,7 +139,7 @@ int copy_data_from_memory(int start_address, int length, char* data, int buffer_
         if((long unsigned int)ram_data % (long unsigned int)PAGE_SIZE == 0){
             ram_data = phys_to_virt(start_address+count);
         }
-        data[count] = *((char*)(ram_data));    
+        data[count] = *((char*)(ram_data)); 
     }
 
     return count;

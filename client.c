@@ -24,22 +24,37 @@ void init_socket(int* sockfd, struct hostent** he, struct sockaddr_in* their_add
 
 int main()
 {
-    int sockfd, numbytes;  
-    char buf[MAXDATASIZE];
-    char response[32];
-    struct hostent *he;
-    struct sockaddr_in their_addr; /* connector's address information */
+    int sockfd = 0;
+    int numbytes = 0; 
+    char response[32] = {0};
+    char buffer[MAXDATASIZE] = { 0 };
+    struct hostent *he = NULL;
+    struct sockaddr_in their_addr = { 0 }; /* connector's address information */
+    int temp = 0;
+    mem_dump_request request = {0};
 
     init_socket(&sockfd, &he, &their_addr);
 
     while (1) {
-	   printf("Enter string: ");
-	   fgets(buf, MAXDATASIZE, stdin);
+	   printf(">>");
+       memset(buffer, 0, MAXDATASIZE);
+	   fgets(buffer, MAXDATASIZE, stdin);
 
-	   send(sockfd, buf, strlen(buf), 0);
+	   send(sockfd, buffer, strlen(buffer), 0);
        recv(sockfd, response, 32, 0);
+       
+       if(strcmp(response, "Invalid input.") == 0)
+            continue;
+       
+       memset(buffer, 0, MAXDATASIZE);
 
-       printf("Message from the server: %s\n", response);
+       temp = recv(sockfd,buffer,20,0);
+       sscanf(buffer,"%10p %08x",&request.starting_address,&request.length);
+
+       memset(buffer, 0, MAXDATASIZE);
+
+       temp = recv(sockfd,buffer,request.length,0);
+       print_mem(request.starting_address, request.length, buffer);
     }
 
     close(sockfd);
