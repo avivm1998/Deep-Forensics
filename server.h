@@ -9,15 +9,15 @@
 #include <linux/netlink.h>
 #include <unistd.h>
 #include <stdint.h>
+#include "utilities.h"
 
 #define PORT 1202
 #define MAX_PAYLOAD 1024
 #define NETLINK_USER 31
+#define INVALID_INPUT "invalid input"
+#define PARSED_SUCCESSFULLY "command received successfully"
+#define EXIT "exit"
 
-typedef struct {
-	uintptr_t starting_address;
-	int length;
-} mem_dump_request;
 
 int main(int argc,char** argv);
 void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct sockaddr_nl* dest_addr, struct nlmsghdr** nlh, 
