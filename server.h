@@ -9,11 +9,14 @@
 #include <linux/netlink.h>
 #include <unistd.h>
 #include <stdint.h>
-#include "dataStruct.h"
+#include "utilities.h"
 
 #define PORT 1202
 #define MAX_PAYLOAD 1024
 #define NETLINK_USER 31
+#define INVALID_INPUT "invalid input"
+#define PARSED_SUCCESSFULLY "command received successfully"
+#define EXIT "exit"
 
 
 int main(int argc,char** argv);
