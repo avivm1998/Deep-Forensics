@@ -30,19 +30,6 @@
 #
 
 # CONTRIBAPPFILES: Contrib Applications.
-CONTRIBAPPFILES=$(CONTRIBDIR)/apps/httpserver/httpserver-netconn.c \
-	$(CONTRIBDIR)/apps/chargen/chargen.c \
-	$(CONTRIBDIR)/apps/udpecho/udpecho.c \
-	$(CONTRIBDIR)/apps/tcpecho/tcpecho.c \
-	$(CONTRIBDIR)/apps/shell/shell.c \
-	$(CONTRIBDIR)/apps/udpecho_raw/udpecho_raw.c \
-	$(CONTRIBDIR)/apps/tcpecho_raw/tcpecho_raw.c \
-	$(CONTRIBDIR)/apps/netio/netio.c \
-	$(CONTRIBDIR)/apps/ping/ping.c \
-	$(CONTRIBDIR)/apps/shell/shell.c \
-	$(CONTRIBDIR)/apps/snmp_private_mib/lwip_prvmib.c \
-	$(CONTRIBDIR)/apps/smtp/smtp.c \
-	$(CONTRIBDIR)/apps/socket_examples/socket_examples.c \
-	$(CONTRIBDIR)/apps/rtp/rtp.c \
-	$(CONTRIBDIR)/addons/tcp_isn/tcp_isn.c
+CONTRIBAPPFILES=$(CONTRIBDIR)/apps/tcpecho_raw/tcpecho_raw.c
+	
 

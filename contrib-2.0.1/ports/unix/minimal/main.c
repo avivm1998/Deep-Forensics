@@ -47,39 +47,17 @@
 
 #include "lwip/ip.h"
 #include "lwip/ip4_frag.h"
-#include "lwip/udp.h"
 #include "lwip/tcp.h"
 #include "netif/tapif.h"
 #include "netif/etharp.h"
 
-#include "lwip/apps/snmp.h"
-#include "lwip/apps/snmp_mib2.h"
-
-#include "apps/snmp_private_mib/private_mib.h"
-#include "apps/udpecho_raw/udpecho_raw.h"
 #include "apps/tcpecho_raw/tcpecho_raw.h"
 
 /* (manual) host IP configuration */
 static ip4_addr_t ipaddr, netmask, gw;
 
-#if LWIP_SNMP
-/* SNMP trap destination cmd option */
-static unsigned char trap_flag;
-static ip_addr_t trap_addr;
-
-static const struct snmp_mib *mibs[] = {
-  &mib2,
-  &mib_private
-};
-#endif
-
 /* nonstatic debug cmd option, exported in lwipopts.h */
 unsigned char debug_flags;
-
-#if LWIP_SNMP
-/* enable == 1, disable == 2 */
-u8_t snmpauthentraps_set = 2;
-#endif
 
 static struct option longopts[] = {
   /* turn on debugging output (if build with LWIP_DEBUG) */
@@ -122,9 +100,6 @@ main(int argc, char **argv)
   IP4_ADDR(&ipaddr, 192,168,0,2);
   IP4_ADDR(&netmask, 255,255,255,0);
 
-#if LWIP_SNMP
-  trap_flag = 0;
-#endif
   /* use debug flags defined by debug.h */
   debug_flags = LWIP_DBG_OFF;
 
@@ -145,17 +120,6 @@ main(int argc, char **argv)
         break;
       case 'm':
         ip4addr_aton(optarg, &netmask);
-        break;
-      case 't':
-#if LWIP_SNMP
-        trap_flag = !0;
-        /* @todo: remove this authentraps tweak 
-          when we have proper SET & non-volatile mem */
-        snmpauthentraps_set = 1;
-        ipaddr_aton(optarg, &trap_addr);
-        strncpy(ip_str, ipaddr_ntoa(&trap_addr),sizeof(ip_str));
-        printf("SNMP trap destination %s\n", ip_str);
-#endif
         break;
       default:
         usage();
@@ -182,32 +146,7 @@ main(int argc, char **argv)
   netif_add(&netif, &ipaddr, &netmask, &gw, NULL, tapif_init, ethernet_input);
   netif_set_default(&netif);
   netif_set_up(&netif);
-#if LWIP_IPV6
-  netif_create_ip6_linklocal_address(&netif, 1);
-#endif 
 
-#if LWIP_SNMP
-  /* initialize our private example MIB */
-  lwip_privmib_init();
-
-  /* snmp_trap_dst_ip_set(0,&trap_addr); */
-  /* snmp_trap_dst_enable(0,trap_flag); */
-
-#if SNMP_LWIP_MIB2
-#if SNMP_USE_NETCONN
-  snmp_threadsync_init(&snmp_mib2_lwip_locks, snmp_mib2_lwip_synchronizer);
-#endif
-  snmp_mib2_set_syscontact_readonly((const u8_t*)"root", NULL);
-  snmp_mib2_set_syslocation_readonly((const u8_t*)"lwIP development PC", NULL);
-  snmp_mib2_set_sysdescr((const u8_t*)"minimal example", NULL);
-#endif /* SNMP_LWIP_MIB2 */
-
-  /* snmp_set_snmpenableauthentraps(&snmpauthentraps_set); */
-  snmp_set_mibs(mibs, LWIP_ARRAYSIZE(mibs));
-  snmp_init();
-#endif /* LWIP_SNMP */
-
-  udpecho_raw_init();
   tcpecho_raw_init();
 
   printf("Applications started.\n");
