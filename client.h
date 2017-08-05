@@ -14,6 +14,7 @@
 #define IP "127.0.0.1"
 #define INVALID_INPUT "invalid input"
 #define EXIT "exit"
+#define MEM_DUMP "d"
 
 
 int main();

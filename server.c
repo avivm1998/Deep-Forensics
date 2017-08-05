@@ -109,113 +109,50 @@ char* send_netlink_request(mem_dump_request request) {
     return (char*)NLMSG_DATA(nlh);
 }
 
-
-
-char* parse_input(mem_dump_request* request, char* input) {
-	int temp = 0;
-	int size = 0;
-	int i = 0;
-	char** parts = NULL;
-	
-	size = split(&parts, input, " ");
-	
-	request->starting_address = -1;
-	request->length = -1;
-	
-	if(strcmp(parts[0], "d") == 0) {
-		if(strcmp(parts[1], "-a") == 0) {
-			if((temp = (int)strtol(parts[2], NULL, 0)) < 0)
-				goto invalid_input;
-
-			request->starting_address = temp;
-			
-			if(strcmp(parts[3], "-a") == 0) {
-				if((temp = (int)strtol(parts[4], NULL, 0) - request->starting_address) <= 0)
-					goto invalid_input;
-
-				request->length = temp;
-			}
-			
-			else if(strcmp(parts[3], "-l") == 0) {
-				if((temp = atoi(parts[4])) <= 0)
-					goto invalid_input;
-
-				request->length = temp;
-			}
-			
-			else {
-				goto invalid_input;
-			}
-		}
-		
-		else {
-			goto invalid_input;
-		}
-	}
-
-	else if(strcmp(parts[0], EXIT) == 0) {
-		return EXIT;
-	}
-	
-	else {
-		goto invalid_input;
-	}
-	
-	return PARSED_SUCCESSFULLY;
-
-invalid_input:
-	return INVALID_INPUT;
-	
-}
-
 int main(int argc,char** argv)
 {
     int sock_fd = 0;
     int client_fd = 0;
     char* response = NULL;
     char* net_res = NULL;
+    char* command = NULL;
     char* failing_function = NULL;
     struct sockaddr_in addr = { 0 }; 
     struct sockaddr_in client = { 0 };
     int read_bytes = 0;
     char buffer[MAX_PAYLOAD] = { 0 };
     int temp = 0;
+    int parsed_request[2] = { 0 };
     mem_dump_request request;
 
 	init_tcp_socket(&sock_fd, &client_fd, &addr, &client);
 
     while(1) {
-        if(recv(client_fd, buffer, MAX_PAYLOAD, 0) == -1) {
-        	failing_function = "recv";
-        	goto failure;
+        if(recv(client_fd, command, sizeof(command) - 1, 0) == -1) {
+            failing_function = "recv";
+            goto failure;
         }
 
-	    response = parse_input(&request, buffer);
-        if(send(client_fd, response, strlen(response) + 1, 0) == -1) {
-        	failing_function = "send";
-        	goto failure;
-        }
+        // Exit command
+        if(strcmp(command, EXIT) == 0) 
+            break;
 
-        if(strcmp(response, EXIT) == 0) {
-        	break;
-        }
-        
-        if(strcmp(response, INVALID_INPUT) == 0) {
-        	continue;
-        }
+        // Memory dump request
+        else {
+            if(recv(client_fd, parsed_request, sizeof(parsed_request), 0) == -1) {
+        	    failing_function = "recv";
+        	    goto failure;
+            }
 
-        net_res = send_netlink_request(request);
-        
-        memset(buffer, 0, MAX_PAYLOAD);
-        sprintf(buffer,"%10p %08x", request.starting_address, request.length);
-        if(send(client_fd, buffer, strlen(buffer) + 1, 0) == -1) {
-        	failing_function = "send";
-        	goto failure;
-        }
+            request.starting_address = parsed_request[0];
+            request.length = parsed_request[1];
 
-        if(send(client_fd, net_res - 1, request.length + 1, 0) == -1) {
-        	failing_function = "send";
-        	goto failure;
+            net_res = send_netlink_request(request);
+
+            if(send(client_fd, net_res, strlen(net_res) + 1, 0) == -1) {
+                failing_function = "send";
+                goto failure;
+            }
         }
     }
 	
