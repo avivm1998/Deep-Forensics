@@ -20,7 +20,7 @@
 #include "netif/tapif.h"
 #include "netif/etharp.h"
 
-#include "apps/tcpecho_raw/tcpecho_raw.h"
+#include "tcpecho_raw.h"
 
 /* (manual) host IP configuration */
 static ip4_addr_t ipaddr, netmask, gw;
@@ -33,7 +33,6 @@ unsigned char debug_flags;
 int main(int argc, char **argv)
 {
 	struct netif netif;
-	char ip_str[16] = {0}, nm_str[16] = {0}, gw_str[16] = {0};
 
 	LWIP_UNUSED_ARG(argc);
 	LWIP_UNUSED_ARG(argv);

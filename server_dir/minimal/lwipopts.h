@@ -39,17 +39,16 @@
 #define LWIP_LWIPOPTS_H
 
 /*
- * Include user defined options first. Anything not defined in these files
- * will be set to standard values. Override anything you dont like!
- */
-#include "lwipopts.h"
-#include "lwip/debug.h"
-
-/*
    -----------------------------------------------
    ---------- Platform specific locking ----------
    -----------------------------------------------
 */
+
+/** 
+ * NO_SYS==1: Provides VERY minimal functionality. Otherwise,
+ * use lwIP facilities.
+ */
+#define NO_SYS                          1
 
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
@@ -58,18 +57,11 @@
  */
 #define SYS_LIGHTWEIGHT_PROT            0
 
-/** 
- * NO_SYS==1: Provides VERY minimal functionality. Otherwise,
- * use lwIP facilities.
- */
-#define NO_SYS                          0
-
 /*
    ------------------------------------
    ---------- Memory options ----------
    ------------------------------------
 */
-
 /**
  * MEM_ALIGNMENT: should be set to the alignment of the CPU
  *    4 byte alignment -> #define MEM_ALIGNMENT 4
@@ -81,7 +73,8 @@
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
-#define MEM_SIZE                        1600
+#define MEM_SIZE                        16000
+
 
 /*
    ------------------------------------------------
@@ -93,7 +86,7 @@
  * If the application sends a lot of data out of ROM (or other static memory),
  * this should be set high.
  */
-#define MEMP_NUM_PBUF                   16
+#define MEMP_NUM_PBUF                   30
 
 /**
  * MEMP_NUM_RAW_PCB: Number of raw connection PCBs
@@ -112,25 +105,19 @@
  * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB                4
+#define MEMP_NUM_TCP_PCB                2
 
 /**
  * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB_LISTEN         4
+#define MEMP_NUM_TCP_PCB_LISTEN         8
 
 /**
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
  * (requires the LWIP_TCP option)
  */
 #define MEMP_NUM_TCP_SEG                16
-
-/**
- * MEMP_NUM_REASSDATA: the number of simultaneously IP packets queued for
- * reassembly (whole packets, not fragments!)
- */
-#define MEMP_NUM_REASSDATA              1
 
 /**
  * MEMP_NUM_ARP_QUEUE: the number of simulateously queued outgoing
@@ -141,41 +128,44 @@
 #define MEMP_NUM_ARP_QUEUE              2
 
 /**
- * MEMP_NUM_SYS_TIMEOUT: the number of simulateously active timeouts.
- * (requires NO_SYS==0)
+ * MEMP_NUM_SYS_TIMEOUT: the number of simultaneously active timeouts.
+ * The default number of timeouts is calculated here for all enabled modules.
+ * The formula expects settings to be either '0' or '1'.
+ *
+ * To this default value, 1 was added for the snmp_increment timer.
  */
-#define MEMP_NUM_SYS_TIMEOUT            3
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_TCP + IP_REASSEMBLY + LWIP_ARP + (2*LWIP_DHCP) + LWIP_AUTOIP + LWIP_IGMP + LWIP_DNS + PPP_SUPPORT + (LWIP_IPV6 ? (1 + LWIP_IPV6_REASS + LWIP_IPV6_MLD) : 0)) + 1
 
 /**
  * MEMP_NUM_NETBUF: the number of struct netbufs.
  * (only needed if you use the sequential API, like api_lib.c)
  */
-#define MEMP_NUM_NETBUF                 2
+#define MEMP_NUM_NETBUF                 0
 
 /**
  * MEMP_NUM_NETCONN: the number of struct netconns.
  * (only needed if you use the sequential API, like api_lib.c)
  */
-#define MEMP_NUM_NETCONN                4
+#define MEMP_NUM_NETCONN                0
 
 /**
  * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
  * for callback/timeout API communication. 
  * (only needed if you use tcpip.c)
  */
-#define MEMP_NUM_TCPIP_MSG_API          8
+#define MEMP_NUM_TCPIP_MSG_API          0
 
 /**
  * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
  * for incoming packets. 
  * (only needed if you use tcpip.c)
  */
-#define MEMP_NUM_TCPIP_MSG_INPKT        8
+#define MEMP_NUM_TCPIP_MSG_INPKT        0
 
 /**
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
  */
-#define PBUF_POOL_SIZE                  8
+#define PBUF_POOL_SIZE                  32
 
 /*
    ---------------------------------
@@ -201,8 +191,8 @@
 
 /**
  * IP_OPTIONS: Defines the behavior for IP options.
- *      IP_OPTIONS_ALLOWED==0: All packets with IP options are dropped.
- *      IP_OPTIONS_ALLOWED==1: IP options are allowed (but not parsed).
+ *      IP_OPTIONS==0_ALLOWED: All packets with IP options are dropped.
+ *      IP_OPTIONS==1_ALLOWED: IP options are allowed (but not parsed).
  */
 #define IP_OPTIONS_ALLOWED              1
 
@@ -233,13 +223,13 @@
  * PBUF_POOL_SIZE > IP_REASS_MAX_PBUFS so that the stack is still able to receive
  * packets even if the maximum amount of fragments is enqueued for reassembly!
  */
-#define IP_REASS_MAX_PBUFS              4
+#define IP_REASS_MAX_PBUFS              10
 
 /**
  * IP_FRAG_USES_STATIC_BUF==1: Use a static MTU-sized buffer for IP
  * fragmentation. Otherwise pbufs are allocated and reference the original
-    * packet data to be fragmented.
-*/
+ * packet data to be fragmented.
+ */
 #define IP_FRAG_USES_STATIC_BUF         0
 
 /**
@@ -258,6 +248,11 @@
  */
 #define LWIP_ICMP                       1
 
+/**
+ * ICMP_TTL: Default value for Time-To-Live used by ICMP packets.
+ */
+#define ICMP_TTL                       (IP_DEFAULT_TTL)
+
 /*
    ---------------------------------
    ---------- RAW options ----------
@@ -266,7 +261,7 @@
 /**
  * LWIP_RAW==1: Enable application layer to hook into the IP layer itself.
  */
-#define LWIP_RAW                        1
+#define LWIP_RAW                        0
 
 /*
    ----------------------------------
@@ -277,7 +272,6 @@
  * LWIP_DHCP==1: Enable DHCP module.
  */
 #define LWIP_DHCP                       0
-
 
 /*
    ------------------------------------
@@ -299,6 +293,8 @@
  * transport.
  */
 #define LWIP_SNMP                       0
+#define LWIP_MIB2_CALLBACKS             0
+#define MIB2_STATS                      0
 
 /*
    ----------------------------------
@@ -329,7 +325,17 @@
 /**
  * LWIP_UDP==1: Turn on UDP.
  */
-#define LWIP_UDP                        1
+#define LWIP_UDP                        0
+
+/**
+ * LWIP_UDPLITE==1: Turn on UDP-Lite. (Requires LWIP_UDP)
+ */
+#define LWIP_UDPLITE                    0
+
+/**
+ * UDP_TTL: Default Time-To-Live value.
+ */
+#define UDP_TTL                         (IP_DEFAULT_TTL)
 
 /*
    ---------------------------------
@@ -340,8 +346,6 @@
  * LWIP_TCP==1: Turn on TCP.
  */
 #define LWIP_TCP                        1
-
-#define LWIP_LISTEN_BACKLOG             0
 
 /*
    ----------------------------------
@@ -355,14 +359,6 @@
  */
 #define PBUF_LINK_HLEN                  16
 
-/**
- * PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. The default is
- * designed to accomodate single full size TCP frame in one pbuf, including
- * TCP_MSS, IP header, and link header.
-*
- */
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
-
 /*
    ------------------------------------
    ---------- LOOPIF options ----------
@@ -373,6 +369,7 @@
  */
 #define LWIP_HAVE_LOOPIF                0
 
+
 /*
    ----------------------------------------------
    ---------- Sequential layer options ----------
@@ -382,7 +379,7 @@
 /**
  * LWIP_NETCONN==1: Enable Netconn API (require to use api_lib.c)
  */
-#define LWIP_NETCONN                    1
+#define LWIP_NETCONN                    0
 
 /*
    ------------------------------------
@@ -392,7 +389,7 @@
 /**
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
  */
-#define LWIP_SOCKET                     1
+#define LWIP_SOCKET                     0
 
 /*
    ----------------------------------------
@@ -402,18 +399,42 @@
 /**
  * LWIP_STATS==1: Enable statistics collection in lwip_stats.
  */
-#define LWIP_STATS                      0
+#define LWIP_STATS                      1
+
 /*
-   ---------------------------------
-   ---------- PPP options ----------
-   ---------------------------------
+   ---------------------------------------
+   ---------- Debugging options ----------
+   ---------------------------------------
 */
-/**
- * PPP_SUPPORT==1: Enable PPP.
- */
-#define PPP_SUPPORT                     0
 
+#define TAPIF_DEBUG      LWIP_DBG_ON
+#define TUNIF_DEBUG      LWIP_DBG_OFF
+#define UNIXIF_DEBUG     LWIP_DBG_OFF
+#define DELIF_DEBUG      LWIP_DBG_OFF
+#define SIO_FIFO_DEBUG   LWIP_DBG_OFF
+#define TCPDUMP_DEBUG    LWIP_DBG_ON
+#define API_LIB_DEBUG    LWIP_DBG_ON
+#define API_MSG_DEBUG    LWIP_DBG_ON
+#define TCPIP_DEBUG      LWIP_DBG_ON
+#define NETIF_DEBUG      LWIP_DBG_ON
+#define SOCKETS_DEBUG    LWIP_DBG_ON
+#define DEMO_DEBUG       LWIP_DBG_ON
+#define IP_DEBUG         LWIP_DBG_ON
+#define IP_REASS_DEBUG   LWIP_DBG_ON
+#define RAW_DEBUG        LWIP_DBG_ON
+#define ICMP_DEBUG       LWIP_DBG_ON
+#define UDP_DEBUG        LWIP_DBG_ON
+#define TCP_DEBUG        LWIP_DBG_ON
+#define TCP_INPUT_DEBUG  LWIP_DBG_ON
+#define TCP_OUTPUT_DEBUG LWIP_DBG_ON
+#define TCP_RTO_DEBUG    LWIP_DBG_ON
+#define TCP_CWND_DEBUG   LWIP_DBG_ON
+#define TCP_WND_DEBUG    LWIP_DBG_ON
+#define TCP_FR_DEBUG     LWIP_DBG_ON
+#define TCP_QLEN_DEBUG   LWIP_DBG_ON
+#define TCP_RST_DEBUG    LWIP_DBG_ON
 
-/* Misc */
+extern unsigned char debug_flags;
+#define LWIP_DBG_TYPES_ON debug_flags
 
 #endif /* LWIP_LWIPOPTS_H */

@@ -29,8 +29,11 @@
 # Author: Adam Dunkels <adam@sics.se>
 #
 
-#CC=gcc
-#CC=clang
+all ipv4 compile: echop
+.PHONY: all
+
+#include ../Common.mk
+#------------------------------------------------------------------------------------------------------------------
 CCDEP?=$(CC)
 
 CFLAGS+=-g -Wall -DLWIP_DEBUG -pedantic \
@@ -54,21 +57,21 @@ endif
 # -ansi
 # -std=c89
 
-LDFLAGS+=-pthread -lutil -lrt
-CONTRIBDIR?=../../..
-LWIPARCH?=$(CONTRIBDIR)/ports/unix/port
+#LDFLAGS+=-pthread -lutil -lrt
+CONTRIBDIR?=..
+LWIPARCH?=$(CONTRIBDIR)/port
 ARFLAGS?=rs
 
 #Set this to where you have the lwip core module checked out from git
 #default assumes it's a dir named lwip at the same level as the contrib module
-LWIPDIR?=$(CONTRIBDIR)/../lwip/src
+LWIPDIR?=$(CONTRIBDIR)/lwip/src
 
 CFLAGS+=-I. \
 	-I$(CONTRIBDIR) \
 	-I$(LWIPDIR)/include \
 	-I$(LWIPARCH)/include
 
-include $(CONTRIBDIR)/ports/Filelists.mk
+#include filelist from lwip dirs 
 include $(LWIPDIR)/Filelists.mk
 
 # ARCHFILES: architecture specific files.
@@ -83,11 +86,28 @@ LWIPLIBCOMMON=liblwipcommon.a
 $(LWIPLIBCOMMON): $(LWIPOBJS)
 	$(AR) $(ARFLAGS) $(LWIPLIBCOMMON) $?
 
-APPFILES=$(CONTRIBAPPFILES) $(LWIPAPPFILES)
+APPFILES=./tcpecho_raw.c $(LWIPAPPFILES)
 APPLIB=liblwipapps.a
 APPOBJS=$(notdir $(APPFILES:.c=.o))
+#---------------------------------------------------------------------------------------------------------------
+
+
 $(APPLIB): $(APPOBJS)
 	$(AR) $(ARFLAGS) $(APPLIB) $?
 
 %.o:
 	$(CC) $(CFLAGS) -c $(<:.o=.c)
+
+
+clean:
+	rm -f *.o $(LWIPLIBCOMMON) $(APPLIB) echop .depend* *.core core
+
+depend dep: .depend
+
+include .depend
+
+.depend: main.c $(LWIPFILES) $(APPFILES)
+	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend
+
+echop: .depend $(LWIPLIBCOMMON) $(APPLIB) main.o $(APPFILES)
+	$(CC) $(CFLAGS) -o server main.o -Wl,--start-group $(APPLIB) $(LWIPLIBCOMMON) -Wl,--end-group $(LDFLAGS)

@@ -1,10 +1,9 @@
-obj-m += kernel_module.o
-
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	gcc server.c -o server
-	gcc client.c -o client
+	make -C ./kernel_dir all
+	make -C ./server_dir all
+	make -C ./client_dir all 
 	
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	rm -rf server server.o client client.o
+	make -C ./kernel_dir clean
+	make -C ./server_dir clean
+	make -C ./client_dir clean 

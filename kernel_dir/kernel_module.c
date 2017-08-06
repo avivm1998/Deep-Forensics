@@ -10,13 +10,15 @@ struct sock *nl_sk = NULL; /* The netlink socket */
 * This function is called when the module is loaded
 */
 int init_module(void) {
-#ifdef DEBUG
-    printk(KERN_INFO "init module\n");
-#endif
+
 
     struct netlink_kernel_cfg cfg = {
         .input = nl_recv_msg,
     };
+
+    #ifdef DEBUG
+    printk(KERN_INFO "init module\n");
+    #endif
 
     nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
     if (!nl_sk) {
@@ -45,9 +47,7 @@ void cleanup_module(void) {
 * Methods
 */
 static void nl_recv_msg(struct sk_buff *skb) {
-#ifdef DEBUG
-    printk(KERN_INFO "nl_recv_msg\n");
-#endif
+
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
     char msg[256] = {0};
@@ -58,6 +58,10 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     int start = 0x0000;
     int length = 100;
+
+    #ifdef DEBUG
+        printk(KERN_INFO "nl_recv_msg\n");
+    #endif
 
     msg_size = strlen(msg);
     memset(msg, 0, msg_size);
