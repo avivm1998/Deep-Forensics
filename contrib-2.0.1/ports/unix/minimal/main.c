@@ -43,30 +43,26 @@ int main(int argc, char **argv)
 	IP4_ADDR(&ipaddr, 192,168,0,2);
 	IP4_ADDR(&netmask, 255,255,255,0);
 
-  	/* use debug flags defined by debug.h */
-  	debug_flags = LWIP_DBG_OFF;
+	/* use debug flags defined by debug.h */
+	debug_flags = LWIP_DBG_OFF;
 
-  	strncpy(ip_str, ip4addr_ntoa(&ipaddr), sizeof(ip_str));
-  	strncpy(nm_str, ip4addr_ntoa(&netmask), sizeof(nm_str));
-  	strncpy(gw_str, ip4addr_ntoa(&gw), sizeof(gw_str));
+	lwip_init();
 
-  	lwip_init();
+	printf("TCP/IP initialized.\n");
 
-  	printf("TCP/IP initialized.\n");
+	netif_add(&netif, &ipaddr, &netmask, &gw, NULL, tapif_init, ethernet_input);
+	netif_set_default(&netif);
+	netif_set_up(&netif);
 
-  	netif_add(&netif, &ipaddr, &netmask, &gw, NULL, tapif_init, ethernet_input);
-  	netif_set_default(&netif);
-  	netif_set_up(&netif);
+	tcpecho_raw_init();
 
-  	tcpecho_raw_init();
+	printf("Applications started.\n");
 
-  	printf("Applications started.\n");
+	while(1) {
+  		/* poll netif, pass packet to lwIP */
+  		tapif_select(&netif);
 
-  	while(1) {
-    		/* poll netif, pass packet to lwIP */
-    		tapif_select(&netif);
-
-    		sys_check_timeouts();
-  	}
-  	return 0;
+  		sys_check_timeouts();
+	}
+	return 0;
 }

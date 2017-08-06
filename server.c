@@ -84,7 +84,7 @@ char* send_netlink_request(mem_dump_request request) {
 
     init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh, &nlh_in, &iov, &iov_in, &msg, &msg_in);
 
-    sprintf(buffer,"%010p,%08x", request.starting_address, request.length);
+    sprintf(buffer,"%08x,%08x", request.starting_address, request.length);
     strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
 
     iov.iov_base = (void *)nlh;

@@ -59,7 +59,7 @@ static void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct
   (*nlh)->nlmsg_flags = 0;
 }
 
-static char* send_netlink_request(int address, int length) {
+static char* send_netlink_request(unsigned int address, unsigned int length) {
   char buffer[MAX_PAYLOAD] = { 0 };
 
   int nl_fd = 0;
@@ -72,7 +72,7 @@ static char* send_netlink_request(int address, int length) {
   init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh);
 
   sprintf(buffer,"%08x,%08x", address, length);
-  strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
+  strncpy((char*)NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
 
   iov.iov_base = (void *)nlh;
   iov.iov_len = nlh->nlmsg_len;
@@ -128,10 +128,10 @@ tcpecho_raw_free(struct tcpecho_raw_state *es)
 
 static void do_action(struct tcpecho_raw_state *es)
 {
-  int* data;
+  unsigned int* data;
   char* res;
 
-  data = (int*)es->p->payload;
+  data = (unsigned int*)es->p->payload;
   printf("0x%0x,%d\n",data[0],data[1]);
 
   /*get data*/
