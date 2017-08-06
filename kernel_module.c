@@ -69,6 +69,7 @@ static void nl_recv_msg(struct sk_buff *skb) {
     strcpy(msg, nlmsg_data(nlh));
     parse_input(msg, &start, &length);
 
+    printk(KERN_INFO "%d %d\n",start,length);
 
     /* change the code here */
     msg_size = copy_data_from_memory(start, length, msg, 256);
@@ -93,12 +94,16 @@ static void nl_recv_msg(struct sk_buff *skb) {
         printk(KERN_ERR "Error sending the message\n");
 
 #ifdef DEBUG
+    printk(KERN_INFO "------------");
+    /*for (i = 0; i < length; i++) {
+        printk(KERN_INFO "%d %x\n",i+1, ((char*)nlmsg_data(nlh))[i]);
+    }*/
     printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
     
 #endif
 }
 
-
+//need to clean up and fix
 void parse_input(char* input, int* start, int* length){
     char buf1[64] = {0};
     char buf2[64] = {0};
@@ -124,9 +129,9 @@ void parse_input(char* input, int* start, int* length){
     buf2[j] = '\0';
 
 
-    temp = kstrtol(buf1, 16, start);
+    temp = kstrtol(buf1, 16, (long int*)start);
 
-    temp = kstrtol(buf2, 16, length);
+    temp = kstrtol(buf2, 16, (long int*)length);
 
 }
 

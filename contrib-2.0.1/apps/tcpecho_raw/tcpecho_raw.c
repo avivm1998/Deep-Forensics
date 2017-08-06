@@ -1,44 +1,15 @@
 /*
- * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
- * All rights reserved. 
- * 
- * Redistribution and use in source and binary forms, with or without modification, 
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission. 
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED 
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
- * SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT 
- * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE.
- *
- * This file is part of and a contribution to the lwIP TCP/IP stack.
- *
- * Credits go to Adam Dunkels (and the current maintainers) of this software.
- *
- * Christiaan Simons rewrote this file to get a more stable echo example.
- */
+  -change file name 
+  -integaete with client
+  -itergarte with kernel 
 
-/**
- * @file
- * TCP echo server example using raw API.
- *
- * Echos all bytes sent by connecting client,
- * and passively closes when client is done.
- *
- */
+
+*/
+
+#include <string.h>
+#include <arpa/inet.h>
+#include <linux/netlink.h>
+#include <unistd.h>
 
 #include "lwip/opt.h"
 #include "lwip/debug.h"
@@ -46,9 +17,84 @@
 #include "lwip/tcp.h"
 #include "tcpecho_raw.h"
 
+#define PORT 1202
+#define NETLINK_USER 31
+#define MAX_PAYLOAD 256
+
 #if LWIP_TCP
 
 static struct tcp_pcb *tcpecho_raw_pcb;
+
+/* Initializing the netlink socket to connect to the kernel */
+static void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct sockaddr_nl* dest_addr, struct nlmsghdr** nlh) {
+
+	int optval = 1;
+
+	if ((*nl_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER)) < 0) {
+		perror("netlink socket");
+		exit(1);
+	}
+
+	/*memset(src_addr, 0, sizeof(*src_addr));*/
+	src_addr->nl_family = AF_NETLINK;
+	src_addr->nl_pid = getpid(); /* self pid */ 
+	src_addr->nl_groups = 0; /* not in mcast group */
+
+	if(bind(*nl_fd, (struct sockaddr *)src_addr, sizeof(*src_addr)) < 0) {
+		perror("netlink bind");
+		exit(1);
+	}
+
+	/*memset(dest_addr, 0, sizeof(*dest_addr));*/
+	dest_addr->nl_family = AF_NETLINK;
+	dest_addr->nl_pid = 0; /* Linux kernel */
+	dest_addr->nl_groups = 0; /* unicast */
+
+  setsockopt(*nl_fd, SOL_SOCKET, NETLINK_NO_ENOBUFS, &optval, sizeof(optval));
+
+	*nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
+  memset(*nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
+  (*nlh)->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
+  (*nlh)->nlmsg_pid = getpid();
+  (*nlh)->nlmsg_flags = 0;
+}
+
+static char* send_netlink_request(int address, int length) {
+  char buffer[MAX_PAYLOAD] = { 0 };
+
+  int nl_fd = 0;
+  struct sockaddr_nl src_addr = { 0 };
+  struct sockaddr_nl dest_addr = { 0 };
+  struct nlmsghdr *nlh = NULL;
+  struct iovec iov = { 0 };
+  struct msghdr msg = { 0 };
+
+  init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh);
+
+  sprintf(buffer,"%08x,%08x", address, length);
+  strncpy(NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
+
+  iov.iov_base = (void *)nlh;
+  iov.iov_len = nlh->nlmsg_len;
+  msg.msg_name = (void *)&dest_addr;
+  msg.msg_namelen = sizeof(dest_addr);
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+
+  if(sendmsg(nl_fd, &msg, 0) < 0) {
+    perror("sendmsg");
+    return NULL;
+  }
+
+  if(recvmsg(nl_fd, &msg, 0) < 0) {
+    perror("recvmsg");
+    return NULL;
+  }
+
+  close(nl_fd);
+
+  return (char*)NLMSG_DATA(nlh);
+}
 
 enum tcpecho_raw_states
 {
@@ -77,7 +123,24 @@ tcpecho_raw_free(struct tcpecho_raw_state *es)
     }
 
     mem_free(es);
-  }  
+  }
+}
+
+static void do_action(struct tcpecho_raw_state *es)
+{
+  int* data;
+  char* res;
+
+  data = (int*)es->p->payload;
+  printf("0x%0x,%d\n",data[0],data[1]);
+
+  /*get data*/
+  /*to be replaced with transfer to kernel*/
+  res = send_netlink_request(data[0],data[1]);  
+
+  es->p->len = data[1];
+  memcpy(es->p->payload,res,data[1]);
+  
 }
 
 static void
@@ -99,10 +162,8 @@ tcpecho_raw_send(struct tcp_pcb *tpcb, struct tcpecho_raw_state *es)
 {
   struct pbuf *ptr;
   err_t wr_err = ERR_OK;
- 
-  while ((wr_err == ERR_OK) &&
-         (es->p != NULL) && 
-         (es->p->len <= tcp_sndbuf(tpcb))) {
+
+  while ((wr_err == ERR_OK) &&(es->p != NULL) &&(es->p->len <= tcp_sndbuf(tpcb))) {
     ptr = es->p;
 
     /* enqueue data for transmission */
@@ -177,7 +238,7 @@ tcpecho_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
 
   es = (struct tcpecho_raw_state *)arg;
   es->retries = 0;
-  
+
   if(es->p != NULL) {
     /* still got pbufs to send */
     tcp_sent(tpcb, tcpecho_raw_sent);
@@ -222,13 +283,16 @@ tcpecho_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
     es->state = ES_RECEIVED;
     /* store reference to incoming pbuf (chain) */
     es->p = p;
+    do_action(es);
     tcpecho_raw_send(tpcb, es);
     ret_err = ERR_OK;
   } else if (es->state == ES_RECEIVED) {
     /* read some more data */
     if(es->p == NULL) {
       es->p = p;
+      do_action(es);
       tcpecho_raw_send(tpcb, es);
+
     } else {
       struct pbuf *ptr;
 
