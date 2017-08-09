@@ -86,7 +86,7 @@ LWIPLIBCOMMON=liblwipcommon.a
 $(LWIPLIBCOMMON): $(LWIPOBJS)
 	$(AR) $(ARFLAGS) $(LWIPLIBCOMMON) $?
 
-APPFILES=./tcpecho_raw.c $(LWIPAPPFILES)
+APPFILES=./tcp_raw.c $(LWIPAPPFILES)
 APPLIB=liblwipapps.a
 APPOBJS=$(notdir $(APPFILES:.c=.o))
 #---------------------------------------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ $(APPLIB): $(APPOBJS)
 
 
 clean:
-	rm -f *.o $(LWIPLIBCOMMON) $(APPLIB) echop .depend* *.core core
+	rm -f *.o $(LWIPLIBCOMMON) $(APPLIB) server .depend* *.core core
 
 depend dep: .depend
 

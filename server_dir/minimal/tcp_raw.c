@@ -15,7 +15,7 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 #include "lwip/tcp.h"
-#include "tcpecho_raw.h"
+#include "tcp_raw.h"
 
 #define PORT 1202
 #define NETLINK_USER 31
@@ -23,7 +23,7 @@
 
 #if LWIP_TCP
 
-static struct tcp_pcb *tcpecho_raw_pcb;
+static struct tcp_pcb *tcp_raw_pcb;
 
 /* Initializing the netlink socket to connect to the kernel */
 static void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct sockaddr_nl* dest_addr, struct nlmsghdr** nlh) {
@@ -96,7 +96,7 @@ static char* send_netlink_request(unsigned int address, unsigned int length) {
   return (char*)NLMSG_DATA(nlh);
 }
 
-enum tcpecho_raw_states
+enum tcp_raw_states
 {
   ES_NONE = 0,
   ES_ACCEPTED,
@@ -104,7 +104,7 @@ enum tcpecho_raw_states
   ES_CLOSING
 };
 
-struct tcpecho_raw_state
+struct tcp_raw_state
 {
   u8_t state;
   u8_t retries;
@@ -114,7 +114,7 @@ struct tcpecho_raw_state
 };
 
 static void
-tcpecho_raw_free(struct tcpecho_raw_state *es)
+tcp_raw_free(struct tcp_raw_state *es)
 {
   if (es != NULL) {
     if (es->p) {
@@ -126,7 +126,7 @@ tcpecho_raw_free(struct tcpecho_raw_state *es)
   }
 }
 
-static void do_action(struct tcpecho_raw_state *es)
+static void do_action(struct tcp_raw_state *es)
 {
   unsigned int* data;
   char* res;
@@ -144,7 +144,7 @@ static void do_action(struct tcpecho_raw_state *es)
 }
 
 static void
-tcpecho_raw_close(struct tcp_pcb *tpcb, struct tcpecho_raw_state *es)
+tcp_raw_close(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
 {
   tcp_arg(tpcb, NULL);
   tcp_sent(tpcb, NULL);
@@ -152,13 +152,13 @@ tcpecho_raw_close(struct tcp_pcb *tpcb, struct tcpecho_raw_state *es)
   tcp_err(tpcb, NULL);
   tcp_poll(tpcb, NULL, 0);
 
-  tcpecho_raw_free(es);
+  tcp_raw_free(es);
 
   tcp_close(tpcb);
 }
 
 static void
-tcpecho_raw_send(struct tcp_pcb *tpcb, struct tcpecho_raw_state *es)
+tcp_raw_send(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
 {
   struct pbuf *ptr;
   err_t wr_err = ERR_OK;
@@ -192,32 +192,32 @@ tcpecho_raw_send(struct tcp_pcb *tpcb, struct tcpecho_raw_state *es)
 }
 
 static void
-tcpecho_raw_error(void *arg, err_t err)
+tcp_raw_error(void *arg, err_t err)
 {
-  struct tcpecho_raw_state *es;
+  struct tcp_raw_state *es;
 
   LWIP_UNUSED_ARG(err);
 
-  es = (struct tcpecho_raw_state *)arg;
+  es = (struct tcp_raw_state *)arg;
 
-  tcpecho_raw_free(es);
+  tcp_raw_free(es);
 }
 
 static err_t
-tcpecho_raw_poll(void *arg, struct tcp_pcb *tpcb)
+tcp_raw_poll(void *arg, struct tcp_pcb *tpcb)
 {
   err_t ret_err;
-  struct tcpecho_raw_state *es;
+  struct tcp_raw_state *es;
 
-  es = (struct tcpecho_raw_state *)arg;
+  es = (struct tcp_raw_state *)arg;
   if (es != NULL) {
     if (es->p != NULL) {
       /* there is a remaining pbuf (chain)  */
-      tcpecho_raw_send(tpcb, es);
+      tcp_raw_send(tpcb, es);
     } else {
       /* no remaining pbuf (chain)  */
       if(es->state == ES_CLOSING) {
-        tcpecho_raw_close(tpcb, es);
+        tcp_raw_close(tpcb, es);
       }
     }
     ret_err = ERR_OK;
@@ -230,45 +230,45 @@ tcpecho_raw_poll(void *arg, struct tcp_pcb *tpcb)
 }
 
 static err_t
-tcpecho_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
+tcp_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
 {
-  struct tcpecho_raw_state *es;
+  struct tcp_raw_state *es;
 
   LWIP_UNUSED_ARG(len);
 
-  es = (struct tcpecho_raw_state *)arg;
+  es = (struct tcp_raw_state *)arg;
   es->retries = 0;
 
   if(es->p != NULL) {
     /* still got pbufs to send */
-    tcp_sent(tpcb, tcpecho_raw_sent);
-    tcpecho_raw_send(tpcb, es);
+    tcp_sent(tpcb, tcp_raw_sent);
+    tcp_raw_send(tpcb, es);
   } else {
     /* no more pbufs to send */
     if(es->state == ES_CLOSING) {
-      tcpecho_raw_close(tpcb, es);
+      tcp_raw_close(tpcb, es);
     }
   }
   return ERR_OK;
 }
 
 static err_t
-tcpecho_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
+tcp_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
-  struct tcpecho_raw_state *es;
+  struct tcp_raw_state *es;
   err_t ret_err;
 
   LWIP_ASSERT("arg != NULL",arg != NULL);
-  es = (struct tcpecho_raw_state *)arg;
+  es = (struct tcp_raw_state *)arg;
   if (p == NULL) {
     /* remote host closed connection */
     es->state = ES_CLOSING;
     if(es->p == NULL) {
       /* we're done sending, close it */
-      tcpecho_raw_close(tpcb, es);
+      tcp_raw_close(tpcb, es);
     } else {
       /* we're not done yet */
-      tcpecho_raw_send(tpcb, es);
+      tcp_raw_send(tpcb, es);
     }
     ret_err = ERR_OK;
   } else if(err != ERR_OK) {
@@ -284,14 +284,14 @@ tcpecho_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
     /* store reference to incoming pbuf (chain) */
     es->p = p;
     do_action(es);
-    tcpecho_raw_send(tpcb, es);
+    tcp_raw_send(tpcb, es);
     ret_err = ERR_OK;
   } else if (es->state == ES_RECEIVED) {
     /* read some more data */
     if(es->p == NULL) {
       es->p = p;
       do_action(es);
-      tcpecho_raw_send(tpcb, es);
+      tcp_raw_send(tpcb, es);
 
     } else {
       struct pbuf *ptr;
@@ -311,10 +311,10 @@ tcpecho_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 }
 
 static err_t
-tcpecho_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
+tcp_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
   err_t ret_err;
-  struct tcpecho_raw_state *es;
+  struct tcp_raw_state *es;
 
   LWIP_UNUSED_ARG(arg);
   if ((err != ERR_OK) || (newpcb == NULL)) {
@@ -326,7 +326,7 @@ tcpecho_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
      new pcbs of higher priority. */
   tcp_setprio(newpcb, TCP_PRIO_MIN);
 
-  es = (struct tcpecho_raw_state *)mem_malloc(sizeof(struct tcpecho_raw_state));
+  es = (struct tcp_raw_state *)mem_malloc(sizeof(struct tcp_raw_state));
   if (es != NULL) {
     es->state = ES_ACCEPTED;
     es->pcb = newpcb;
@@ -334,10 +334,10 @@ tcpecho_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
     es->p = NULL;
     /* pass newly allocated es to our callbacks */
     tcp_arg(newpcb, es);
-    tcp_recv(newpcb, tcpecho_raw_recv);
-    tcp_err(newpcb, tcpecho_raw_error);
-    tcp_poll(newpcb, tcpecho_raw_poll, 0);
-    tcp_sent(newpcb, tcpecho_raw_sent);
+    tcp_recv(newpcb, tcp_raw_recv);
+    tcp_err(newpcb, tcp_raw_error);
+    tcp_poll(newpcb, tcp_raw_poll, 0);
+    tcp_sent(newpcb, tcp_raw_sent);
     ret_err = ERR_OK;
   } else {
     ret_err = ERR_MEM;
@@ -346,16 +346,16 @@ tcpecho_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 }
 
 void
-tcpecho_raw_init(void)
+tcp_raw_init(void)
 {
-  tcpecho_raw_pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
-  if (tcpecho_raw_pcb != NULL) {
+  tcp_raw_pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
+  if (tcp_raw_pcb != NULL) {
     err_t err;
 
-    err = tcp_bind(tcpecho_raw_pcb, IP_ANY_TYPE, 1202);
+    err = tcp_bind(tcp_raw_pcb, IP_ANY_TYPE, 1202);
     if (err == ERR_OK) {
-      tcpecho_raw_pcb = tcp_listen(tcpecho_raw_pcb);
-      tcp_accept(tcpecho_raw_pcb, tcpecho_raw_accept);
+      tcp_raw_pcb = tcp_listen(tcp_raw_pcb);
+      tcp_accept(tcp_raw_pcb, tcp_raw_accept);
     } else {
       /* abort? output diagnostic? */
     }

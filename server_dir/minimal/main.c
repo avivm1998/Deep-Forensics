@@ -20,7 +20,7 @@
 #include "netif/tapif.h"
 #include "netif/etharp.h"
 
-#include "tcpecho_raw.h"
+#include "tcp_raw.h"
 
 /* (manual) host IP configuration */
 static ip4_addr_t ipaddr, netmask, gw;
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	netif_set_default(&netif);
 	netif_set_up(&netif);
 
-	tcpecho_raw_init();
+	tcp_raw_init();
 
 	printf("Applications started.\n");
 
