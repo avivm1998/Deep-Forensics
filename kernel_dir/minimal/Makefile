@@ -74,10 +74,11 @@ CFLAGS+=-I. \
 #include filelist from lwip dirs 
 include $(LWIPDIR)/Filelists.mk
 
+#$(LWIPARCH)/netif/tapif.c  $(LWIPARCH)/netif/tunif.c $(LWIPARCH)/netif/unixif.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c \
+	#$(LWIPARCH)/netif/delif.c $(LWIPARCH)/netif/sio.c $(LWIPARCH)/netif/fifo.c
 # ARCHFILES: architecture specific files.
-ARCHFILES=$(LWIPARCH)/perf.c $(LWIPARCH)/sys_arch.c $(LWIPARCH)/netif/tapif.c $(LWIPARCH)/netif/tunif.c \
-	$(LWIPARCH)/netif/unixif.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c \
-	$(LWIPARCH)/netif/delif.c $(LWIPARCH)/netif/sio.c $(LWIPARCH)/netif/fifo.c
+ARCHFILES= $(LWIPARCH)/sys_arch.c 
+	 
 
 LWIPFILES=$(LWIPNOAPPSFILES) $(ARCHFILES)
 LWIPOBJS=$(notdir $(LWIPFILES:.c=.o))
@@ -109,8 +110,9 @@ depend dep: .depend
 
 include .depend
 
-.depend: main.c $(LWIPFILES)
+.depend: $(LWIPFILES)
 	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend
 
-echop: .depend $(LWIPLIBCOMMON) $(APPLIB) main.o
-	$(CC) $(CFLAGS) -o server main.o -Wl,--start-group $(APPLIB) $(LWIPLIBCOMMON) -Wl,--end-group $(LDFLAGS)
+echop: .depend $(LWIPLIBCOMMON) $(APPLIB)
+	#$(CC) $(CFLAGS) -Wl,--start-group $(APPLIB) $(LWIPLIBCOMMON) -Wl,--end-group $(LDFLAGS)
+	echo ""

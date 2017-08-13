@@ -6,115 +6,13 @@
 
 */
 
-#include <string.h>
-#include <arpa/inet.h>
-#include <linux/netlink.h>
-#include <unistd.h>
-
-#include "lwip/opt.h"
-#include "lwip/debug.h"
-#include "lwip/stats.h"
-#include "lwip/tcp.h"
 #include "tcp_raw.h"
-
-#define PORT 1202
-#define NETLINK_USER 31
-#define MAX_PAYLOAD 256
 
 #if LWIP_TCP
 
 static struct tcp_pcb *tcp_raw_pcb;
 
-/* Initializing the netlink socket to connect to the kernel */
-static void init_netlink_socket(int* nl_fd, struct sockaddr_nl* src_addr, struct sockaddr_nl* dest_addr, struct nlmsghdr** nlh) {
-
-	int optval = 1;
-
-	if ((*nl_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER)) < 0) {
-		perror("netlink socket");
-		exit(1);
-	}
-
-	/*memset(src_addr, 0, sizeof(*src_addr));*/
-	src_addr->nl_family = AF_NETLINK;
-	src_addr->nl_pid = getpid(); /* self pid */ 
-	src_addr->nl_groups = 0; /* not in mcast group */
-
-	if(bind(*nl_fd, (struct sockaddr *)src_addr, sizeof(*src_addr)) < 0) {
-		perror("netlink bind");
-		exit(1);
-	}
-
-	/*memset(dest_addr, 0, sizeof(*dest_addr));*/
-	dest_addr->nl_family = AF_NETLINK;
-	dest_addr->nl_pid = 0; /* Linux kernel */
-	dest_addr->nl_groups = 0; /* unicast */
-
-  setsockopt(*nl_fd, SOL_SOCKET, NETLINK_NO_ENOBUFS, &optval, sizeof(optval));
-
-	*nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PAYLOAD));
-  memset(*nlh, 0, NLMSG_SPACE(MAX_PAYLOAD));
-  (*nlh)->nlmsg_len = NLMSG_SPACE(MAX_PAYLOAD);
-  (*nlh)->nlmsg_pid = getpid();
-  (*nlh)->nlmsg_flags = 0;
-}
-
-static char* send_netlink_request(unsigned int address, unsigned int length) {
-  char buffer[MAX_PAYLOAD] = { 0 };
-
-  int nl_fd = 0;
-  struct sockaddr_nl src_addr = { 0 };
-  struct sockaddr_nl dest_addr = { 0 };
-  struct nlmsghdr *nlh = NULL;
-  struct iovec iov = { 0 };
-  struct msghdr msg = { 0 };
-
-  init_netlink_socket(&nl_fd, &src_addr, &dest_addr, &nlh);
-
-  sprintf(buffer,"%08x,%08x", address, length);
-  strncpy((char*)NLMSG_DATA(nlh), buffer, strlen(buffer) + 1);
-
-  iov.iov_base = (void *)nlh;
-  iov.iov_len = nlh->nlmsg_len;
-  msg.msg_name = (void *)&dest_addr;
-  msg.msg_namelen = sizeof(dest_addr);
-  msg.msg_iov = &iov;
-  msg.msg_iovlen = 1;
-
-  if(sendmsg(nl_fd, &msg, 0) < 0) {
-    perror("sendmsg");
-    return NULL;
-  }
-
-  if(recvmsg(nl_fd, &msg, 0) < 0) {
-    perror("recvmsg");
-    return NULL;
-  }
-
-  close(nl_fd);
-
-  return (char*)NLMSG_DATA(nlh);
-}
-
-enum tcp_raw_states
-{
-  ES_NONE = 0,
-  ES_ACCEPTED,
-  ES_RECEIVED,
-  ES_CLOSING
-};
-
-struct tcp_raw_state
-{
-  u8_t state;
-  u8_t retries;
-  struct tcp_pcb *pcb;
-  /* pbuf (chain) to recycle */
-  struct pbuf *p;
-};
-
-static void
-tcp_raw_free(struct tcp_raw_state *es)
+static void tcp_raw_free(struct tcp_raw_state *es)
 {
   if (es != NULL) {
     if (es->p) {
@@ -132,19 +30,16 @@ static void do_action(struct tcp_raw_state *es)
   char* res;
 
   data = (unsigned int*)es->p->payload;
-  printf("0x%0x,%d\n",data[0],data[1]);
 
   /*get data*/
-  /*to be replaced with transfer to kernel*/
-  res = send_netlink_request(data[0],data[1]);  
+  /*to be replaced with transfer to kernel*/ 
 
   es->p->len = data[1];
   memcpy(es->p->payload,res,data[1]);
   
 }
 
-static void
-tcp_raw_close(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
+static void tcp_raw_close(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
 {
   tcp_arg(tpcb, NULL);
   tcp_sent(tpcb, NULL);
@@ -157,8 +52,7 @@ tcp_raw_close(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
   tcp_close(tpcb);
 }
 
-static void
-tcp_raw_send(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
+static void tcp_raw_send(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
 {
   struct pbuf *ptr;
   err_t wr_err = ERR_OK;
@@ -191,8 +85,7 @@ tcp_raw_send(struct tcp_pcb *tpcb, struct tcp_raw_state *es)
   }
 }
 
-static void
-tcp_raw_error(void *arg, err_t err)
+static void tcp_raw_error(void *arg, err_t err)
 {
   struct tcp_raw_state *es;
 
@@ -203,8 +96,7 @@ tcp_raw_error(void *arg, err_t err)
   tcp_raw_free(es);
 }
 
-static err_t
-tcp_raw_poll(void *arg, struct tcp_pcb *tpcb)
+static err_t tcp_raw_poll(void *arg, struct tcp_pcb *tpcb)
 {
   err_t ret_err;
   struct tcp_raw_state *es;
@@ -229,8 +121,7 @@ tcp_raw_poll(void *arg, struct tcp_pcb *tpcb)
   return ret_err;
 }
 
-static err_t
-tcp_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
+static err_t tcp_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
 {
   struct tcp_raw_state *es;
 
@@ -252,8 +143,7 @@ tcp_raw_sent(void *arg, struct tcp_pcb *tpcb, u16_t len)
   return ERR_OK;
 }
 
-static err_t
-tcp_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
+static err_t tcp_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 {
   struct tcp_raw_state *es;
   err_t ret_err;
@@ -310,8 +200,7 @@ tcp_raw_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
   return ret_err;
 }
 
-static err_t
-tcp_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
+static err_t tcp_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
   err_t ret_err;
   struct tcp_raw_state *es;
@@ -345,8 +234,7 @@ tcp_raw_accept(void *arg, struct tcp_pcb *newpcb, err_t err)
   return ret_err;
 }
 
-void
-tcp_raw_init(void)
+void tcp_raw_init(void)
 {
   tcp_raw_pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
   if (tcp_raw_pcb != NULL) {
@@ -363,5 +251,7 @@ tcp_raw_init(void)
     /* abort? output diagnostic? */
   }
 }
+
+
 
 #endif /* LWIP_TCP */

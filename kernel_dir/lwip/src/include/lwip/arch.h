@@ -76,9 +76,7 @@
  * systems, this should be defined to something less resource-consuming.
  */
 #ifndef LWIP_PLATFORM_DIAG
-#define LWIP_PLATFORM_DIAG(x)	do {printf x;} while(0)
-#include <stdio.h>
-#include <stdlib.h>
+#define LWIP_PLATFORM_DIAG(x)	(void)(x)
 #endif
 
 /** Platform specific assertion handling.\n
@@ -87,23 +85,9 @@
  * systems, this should be defined to something less resource-consuming.
  */
 #ifndef LWIP_PLATFORM_ASSERT
-#define LWIP_PLATFORM_ASSERT(x) do {printf("Assertion \"%s\" failed at line %d in %s\n", \
-                                     x, __LINE__, __FILE__); fflush(NULL); abort();} while(0)
-#include <stdio.h>
-#include <stdlib.h>
+#define LWIP_PLATFORM_ASSERT(x) (void)(x)
 #endif
 
-/** Define this to 1 in arch/cc.h of your port if you do not want to
- * include stddef.h header to get size_t. You need to typedef size_t
- * by yourself in this case.
- */
-#ifndef LWIP_NO_STDDEF_H
-#define LWIP_NO_STDDEF_H 0
-#endif
-
-#if !LWIP_NO_STDDEF_H
-#include <stddef.h> /* for size_t */
-#endif
 
 /** Define this to 1 in arch/cc.h of your port if your compiler does not provide
  * the stdint.h header. You need to typedef the generic types listed in
@@ -115,14 +99,14 @@
 
 /* Define generic types used in lwIP */
 #if !LWIP_NO_STDINT_H
-#include <stdint.h>
-typedef uint8_t   u8_t;
-typedef int8_t    s8_t;
-typedef uint16_t  u16_t;
-typedef int16_t   s16_t;
-typedef uint32_t  u32_t;
-typedef int32_t   s32_t;
-typedef uintptr_t mem_ptr_t;
+#include <linux/types.h>
+typedef __u8   u8_t;
+typedef __s8    s8_t;
+typedef __u16  u16_t;
+typedef __s16   s16_t;
+typedef __u32  u32_t;
+typedef __s32   s32_t;
+typedef unsigned long mem_ptr_t;
 #endif
 
 /** Define this to 1 in arch/cc.h of your port if your compiler does not provide
@@ -135,30 +119,30 @@ typedef uintptr_t mem_ptr_t;
 
 /* Define (sn)printf formatters for these lwIP types */
 #if !LWIP_NO_INTTYPES_H
-#include <inttypes.h>
+#include <linux/types.h>
 #ifndef X8_F
-#define X8_F  "02" PRIx8
+#define X8_F  "02" "hhx"
 #endif
 #ifndef U16_F
-#define U16_F PRIu16
+#define U16_F "hu"
 #endif
 #ifndef S16_F
-#define S16_F PRId16
+#define S16_F "hd"
 #endif
 #ifndef X16_F
-#define X16_F PRIx16
+#define X16_F "hx"
 #endif
 #ifndef U32_F
-#define U32_F PRIu32
+#define U32_F "lu"
 #endif
 #ifndef S32_F
-#define S32_F PRId32
+#define S32_F "ld"
 #endif
 #ifndef X32_F
-#define X32_F PRIx32
+#define X32_F "lx"
 #endif
 #ifndef SZT_F
-#define SZT_F PRIuPTR
+#define SZT_F "llu"
 #endif
 #endif
 

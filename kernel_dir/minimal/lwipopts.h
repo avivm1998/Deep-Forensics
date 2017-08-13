@@ -67,7 +67,7 @@
  *    4 byte alignment -> #define MEM_ALIGNMENT 4
  *    2 byte alignment -> #define MEM_ALIGNMENT 2
  */
-#define MEM_ALIGNMENT                   1
+#define MEM_ALIGNMENT                   8
 
 /**
  * MEM_SIZE: the size of the heap memory. If the application will send
@@ -94,12 +94,6 @@
  */
 #define MEMP_NUM_RAW_PCB                4
 
-/**
- * MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One
- * per active UDP "connection".
- * (requires the LWIP_UDP option)
- */
-#define MEMP_NUM_UDP_PCB                4
 
 /**
  * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
@@ -111,7 +105,7 @@
  * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB_LISTEN         8
+#define MEMP_NUM_TCP_PCB_LISTEN         1
 
 /**
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
@@ -136,31 +130,6 @@
  */
 #define MEMP_NUM_SYS_TIMEOUT            (LWIP_TCP + IP_REASSEMBLY + LWIP_ARP + (2*LWIP_DHCP) + LWIP_AUTOIP + LWIP_IGMP + LWIP_DNS + PPP_SUPPORT + (LWIP_IPV6 ? (1 + LWIP_IPV6_REASS + LWIP_IPV6_MLD) : 0)) + 1
 
-/**
- * MEMP_NUM_NETBUF: the number of struct netbufs.
- * (only needed if you use the sequential API, like api_lib.c)
- */
-#define MEMP_NUM_NETBUF                 0
-
-/**
- * MEMP_NUM_NETCONN: the number of struct netconns.
- * (only needed if you use the sequential API, like api_lib.c)
- */
-#define MEMP_NUM_NETCONN                0
-
-/**
- * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
- * for callback/timeout API communication. 
- * (only needed if you use tcpip.c)
- */
-#define MEMP_NUM_TCPIP_MSG_API          0
-
-/**
- * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
- * for incoming packets. 
- * (only needed if you use tcpip.c)
- */
-#define MEMP_NUM_TCPIP_MSG_INPKT        0
 
 /**
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
@@ -261,7 +230,7 @@
 /**
  * LWIP_RAW==1: Enable application layer to hook into the IP layer itself.
  */
-#define LWIP_RAW                        0
+#define LWIP_RAW                        1
 
 /*
    ----------------------------------
@@ -316,26 +285,6 @@
  * transport.
  */
 #define LWIP_DNS                        0
-
-/*
-   ---------------------------------
-   ---------- UDP options ----------
-   ---------------------------------
-*/
-/**
- * LWIP_UDP==1: Turn on UDP.
- */
-#define LWIP_UDP                        0
-
-/**
- * LWIP_UDPLITE==1: Turn on UDP-Lite. (Requires LWIP_UDP)
- */
-#define LWIP_UDPLITE                    0
-
-/**
- * UDP_TTL: Default Time-To-Live value.
- */
-#define UDP_TTL                         (IP_DEFAULT_TTL)
 
 /*
    ---------------------------------
@@ -407,32 +356,32 @@
    ---------------------------------------
 */
 
-#define TAPIF_DEBUG      LWIP_DBG_ON
+#define TAPIF_DEBUG      LWIP_DBG_OFF
 #define TUNIF_DEBUG      LWIP_DBG_OFF
 #define UNIXIF_DEBUG     LWIP_DBG_OFF
 #define DELIF_DEBUG      LWIP_DBG_OFF
 #define SIO_FIFO_DEBUG   LWIP_DBG_OFF
-#define TCPDUMP_DEBUG    LWIP_DBG_ON
-#define API_LIB_DEBUG    LWIP_DBG_ON
-#define API_MSG_DEBUG    LWIP_DBG_ON
-#define TCPIP_DEBUG      LWIP_DBG_ON
-#define NETIF_DEBUG      LWIP_DBG_ON
-#define SOCKETS_DEBUG    LWIP_DBG_ON
-#define DEMO_DEBUG       LWIP_DBG_ON
-#define IP_DEBUG         LWIP_DBG_ON
-#define IP_REASS_DEBUG   LWIP_DBG_ON
-#define RAW_DEBUG        LWIP_DBG_ON
-#define ICMP_DEBUG       LWIP_DBG_ON
-#define UDP_DEBUG        LWIP_DBG_ON
-#define TCP_DEBUG        LWIP_DBG_ON
-#define TCP_INPUT_DEBUG  LWIP_DBG_ON
-#define TCP_OUTPUT_DEBUG LWIP_DBG_ON
-#define TCP_RTO_DEBUG    LWIP_DBG_ON
-#define TCP_CWND_DEBUG   LWIP_DBG_ON
-#define TCP_WND_DEBUG    LWIP_DBG_ON
-#define TCP_FR_DEBUG     LWIP_DBG_ON
-#define TCP_QLEN_DEBUG   LWIP_DBG_ON
-#define TCP_RST_DEBUG    LWIP_DBG_ON
+#define TCPDUMP_DEBUG    LWIP_DBG_OFF
+#define API_LIB_DEBUG    LWIP_DBG_OFF
+#define API_MSG_DEBUG    LWIP_DBG_OFF
+#define TCPIP_DEBUG      LWIP_DBG_OFF
+#define NETIF_DEBUG      LWIP_DBG_OFF
+#define SOCKETS_DEBUG    LWIP_DBG_OFF
+#define DEMO_DEBUG       LWIP_DBG_OFF
+#define IP_DEBUG         LWIP_DBG_OFF
+#define IP_REASS_DEBUG   LWIP_DBG_OFF
+#define RAW_DEBUG        LWIP_DBG_OFF
+#define ICMP_DEBUG       LWIP_DBG_OFF
+#define UDP_DEBUG        LWIP_DBG_OFF
+#define TCP_DEBUG        LWIP_DBG_OFF
+#define TCP_INPUT_DEBUG  LWIP_DBG_OFF
+#define TCP_OUTPUT_DEBUG LWIP_DBG_OFF
+#define TCP_RTO_DEBUG    LWIP_DBG_OFF
+#define TCP_CWND_DEBUG   LWIP_DBG_OFF
+#define TCP_WND_DEBUG    LWIP_DBG_OFF
+#define TCP_FR_DEBUG     LWIP_DBG_OFF
+#define TCP_QLEN_DEBUG   LWIP_DBG_OFF
+#define TCP_RST_DEBUG    LWIP_DBG_OFF
 
 extern unsigned char debug_flags;
 #define LWIP_DBG_TYPES_ON debug_flags

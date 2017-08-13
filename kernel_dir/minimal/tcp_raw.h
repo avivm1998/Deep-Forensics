@@ -30,6 +30,33 @@
 #ifndef LWIP_TCP_RAW_H
 #define LWIP_TCP_RAW_H
 
+#include "lwip/opt.h"
+#include "lwip/debug.h"
+#include "lwip/stats.h"
+#include "lwip/tcp.h"
+
+#define PORT 1202
+#define MAX_PAYLOAD 256
+
+enum tcp_raw_states
+{
+  ES_NONE = 0,
+  ES_ACCEPTED,
+  ES_RECEIVED,
+  ES_CLOSING
+};
+
+struct tcp_raw_state
+{
+  u8_t state;
+  u8_t retries;
+  struct tcp_pcb *pcb;
+  /* pbuf (chain) to recycle */
+  struct pbuf *p;
+};
+
 void tcp_raw_init(void);
+
+EXPORT_SYMBOL(tcp_raw_init);
 
 #endif /* LWIP_TCP_RAW_H */

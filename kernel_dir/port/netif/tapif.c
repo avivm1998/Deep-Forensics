@@ -38,7 +38,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/time.h>
+//#include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
 
@@ -68,6 +68,8 @@
 #include <sys/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <linux/time.h>
+
 /*
  * Creating a tap interface requires special privileges. If the interfaces
  * is created in advance with `tunctl -u <user>` it can be opened as a regular
@@ -109,9 +111,6 @@ struct tapif {
 
 /* Forward declarations. */
 static void tapif_input(struct netif *netif);
-#if !NO_SYS
-static void tapif_thread(void *arg);
-#endif /* !NO_SYS */
 
 /*-----------------------------------------------------------------------------------*/
 static void
@@ -204,9 +203,6 @@ low_level_init(struct netif *netif)
 #endif /* LWIP_IPV4 */
   }
 
-#if !NO_SYS
-  sys_thread_new("tapif_thread", tapif_thread, netif, DEFAULT_THREAD_STACKSIZE, DEFAULT_THREAD_PRIO);
-#endif /* !NO_SYS */
 }
 /*-----------------------------------------------------------------------------------*/
 /*

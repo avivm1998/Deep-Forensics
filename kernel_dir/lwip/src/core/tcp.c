@@ -96,7 +96,7 @@ static const char * const tcp_state_str[] = {
   "CLOSE_WAIT",
   "CLOSING",
   "LAST_ACK",
-  "TIME_WAIT"
+  "TIME_WAITS"
 };
 
 /* last local TCP port */
@@ -275,7 +275,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
       TCP_RMV_ACTIVE(pcb);
       if (pcb->state == ESTABLISHED) {
         /* move to TIME_WAIT since we close actively */
-        pcb->state = TIME_WAIT;
+        pcb->state = TIME_WAITS;
         TCP_REG(&tcp_tw_pcbs, pcb);
       } else {
         /* CLOSE_WAIT: deallocate the pcb since we already sent a RST for it */
@@ -461,7 +461,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
   /* Figure out on which TCP PCB list we are, and remove us. If we
      are in an active state, call the receive function associated with
      the PCB with a NULL argument, and send an RST to the remote end. */
-  if (pcb->state == TIME_WAIT) {
+  if (pcb->state == TIME_WAITS) {
     tcp_pcb_remove(&tcp_tw_pcbs, pcb);
     memp_free(MEMP_TCP_PCB, pcb);
   } else {
@@ -986,7 +986,7 @@ tcp_slowtmr_start:
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: processing active pcb\n"));
     LWIP_ASSERT("tcp_slowtmr: active pcb->state != CLOSED\n", pcb->state != CLOSED);
     LWIP_ASSERT("tcp_slowtmr: active pcb->state != LISTEN\n", pcb->state != LISTEN);
-    LWIP_ASSERT("tcp_slowtmr: active pcb->state != TIME-WAIT\n", pcb->state != TIME_WAIT);
+    LWIP_ASSERT("tcp_slowtmr: active pcb->state != TIME-WAIT\n", pcb->state != TIME_WAITS);
     if (pcb->last_timer == tcp_timer_ctr) {
       /* skip this pcb, we have already processed it */
       pcb = pcb->next;
@@ -1186,7 +1186,7 @@ tcp_slowtmr_start:
   prev = NULL;
   pcb = tcp_tw_pcbs;
   while (pcb != NULL) {
-    LWIP_ASSERT("tcp_slowtmr: TIME-WAIT pcb->state == TIME-WAIT", pcb->state == TIME_WAIT);
+    LWIP_ASSERT("tcp_slowtmr: TIME-WAIT pcb->state == TIME-WAIT", pcb->state == TIME_WAITS);
     pcb_remove = 0;
 
     /* Check if this PCB has stayed long enough in TIME-WAIT */
@@ -1773,7 +1773,7 @@ void
 tcp_pcb_purge(struct tcp_pcb *pcb)
 {
   if (pcb->state != CLOSED &&
-     pcb->state != TIME_WAIT &&
+     pcb->state != TIME_WAITS &&
      pcb->state != LISTEN) {
 
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_pcb_purge\n"));
@@ -1826,7 +1826,7 @@ tcp_pcb_remove(struct tcp_pcb **pcblist, struct tcp_pcb *pcb)
   tcp_pcb_purge(pcb);
 
   /* if there is an outstanding delayed ACKs, send it */
-  if (pcb->state != TIME_WAIT &&
+  if (pcb->state != TIME_WAITS &&
      pcb->state != LISTEN &&
      pcb->flags & TF_ACK_DELAY) {
     pcb->flags |= TF_ACK_NOW;
@@ -2119,10 +2119,10 @@ tcp_pcbs_sane(void)
   for (pcb = tcp_active_pcbs; pcb != NULL; pcb = pcb->next) {
     LWIP_ASSERT("tcp_pcbs_sane: active pcb->state != CLOSED", pcb->state != CLOSED);
     LWIP_ASSERT("tcp_pcbs_sane: active pcb->state != LISTEN", pcb->state != LISTEN);
-    LWIP_ASSERT("tcp_pcbs_sane: active pcb->state != TIME-WAIT", pcb->state != TIME_WAIT);
+    LWIP_ASSERT("tcp_pcbs_sane: active pcb->state != TIME-WAIT", pcb->state != TIME_WAITS);
   }
   for (pcb = tcp_tw_pcbs; pcb != NULL; pcb = pcb->next) {
-    LWIP_ASSERT("tcp_pcbs_sane: tw pcb->state == TIME-WAIT", pcb->state == TIME_WAIT);
+    LWIP_ASSERT("tcp_pcbs_sane: tw pcb->state == TIME-WAIT", pcb->state == TIME_WAITS);
   }
   return 1;
 }

@@ -32,7 +32,8 @@
 #ifndef LWIP_ARCH_PERF_H
 #define LWIP_ARCH_PERF_H
 
-#include <sys/times.h>
+//#include <sys/times.h>
+#include <linux/time.h>
 
 #ifdef PERF
 #define PERF_START  { \

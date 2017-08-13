@@ -162,7 +162,7 @@ enum tcp_state {
   CLOSE_WAIT  = 7,
   CLOSING     = 8,
   LAST_ACK    = 9,
-  TIME_WAIT   = 10
+  TIME_WAITS   = 10
 };
 
 /**

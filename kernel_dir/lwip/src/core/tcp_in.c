@@ -224,7 +224,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
 
   for (pcb = tcp_active_pcbs; pcb != NULL; pcb = pcb->next) {
     LWIP_ASSERT("tcp_input: active pcb->state != CLOSED", pcb->state != CLOSED);
-    LWIP_ASSERT("tcp_input: active pcb->state != TIME-WAIT", pcb->state != TIME_WAIT);
+    LWIP_ASSERT("tcp_input: active pcb->state != TIME-WAIT", pcb->state != TIME_WAITS);
     LWIP_ASSERT("tcp_input: active pcb->state != LISTEN", pcb->state != LISTEN);
     if (pcb->remote_port == tcphdr->src &&
         pcb->local_port == tcphdr->dest &&
@@ -251,7 +251,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
     /* If it did not go to an active connection, we check the connections
        in the TIME-WAIT state. */
     for (pcb = tcp_tw_pcbs; pcb != NULL; pcb = pcb->next) {
-      LWIP_ASSERT("tcp_input: TIME-WAIT pcb->state == TIME-WAIT", pcb->state == TIME_WAIT);
+      LWIP_ASSERT("tcp_input: TIME-WAIT pcb->state == TIME-WAIT", pcb->state == TIME_WAITS);
       if (pcb->remote_port == tcphdr->src &&
           pcb->local_port == tcphdr->dest &&
           ip_addr_cmp(&pcb->remote_ip, ip_current_src_addr()) &&
@@ -901,7 +901,7 @@ tcp_process(struct tcp_pcb *pcb)
         tcp_ack_now(pcb);
         tcp_pcb_purge(pcb);
         TCP_RMV_ACTIVE(pcb);
-        pcb->state = TIME_WAIT;
+        pcb->state = TIME_WAITS;
         TCP_REG(&tcp_tw_pcbs, pcb);
       } else {
         tcp_ack_now(pcb);
@@ -919,7 +919,7 @@ tcp_process(struct tcp_pcb *pcb)
       tcp_ack_now(pcb);
       tcp_pcb_purge(pcb);
       TCP_RMV_ACTIVE(pcb);
-      pcb->state = TIME_WAIT;
+      pcb->state = TIME_WAITS;
       TCP_REG(&tcp_tw_pcbs, pcb);
     }
     break;
@@ -929,7 +929,7 @@ tcp_process(struct tcp_pcb *pcb)
       LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: CLOSING %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
       tcp_pcb_purge(pcb);
       TCP_RMV_ACTIVE(pcb);
-      pcb->state = TIME_WAIT;
+      pcb->state = TIME_WAITS;
       TCP_REG(&tcp_tw_pcbs, pcb);
     }
     break;

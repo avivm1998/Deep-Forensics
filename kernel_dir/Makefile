@@ -1,5 +1,6 @@
 obj-m += kernel_module.o
 kernel_module-obj += liblwipcommon.a liblwipapps.a
+EXTRA_CFLAGS = -I$(PWD)/kernel_dir/lwip/src/include -I$(PWD)/kernel_dir/minimal -I$(PWD)/kernel_dir/port/include
 
 
 all:
