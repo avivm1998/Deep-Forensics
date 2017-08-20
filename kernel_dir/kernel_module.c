@@ -1,112 +1,147 @@
 #include "kernel_module.h"
 
-/*
-* Global variables are declared as static, so are global within the file.
-*/
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/kthread.h>
+#include <linux/slab.h>
 
-struct sock *nl_sk = NULL; /* The netlink socket */
+#include <net/sock.h>
 
-/*
-* This function is called when the module is loaded
-*/
-int init_module(void) {
+#define PORT 1202
+#define MAX_SIZE 256
 
+struct service {
+    struct socket *listen_socket;
+    struct task_struct *thread;
+};
 
-    struct netlink_kernel_cfg cfg = {
-        .input = nl_recv_msg,
-    };
+struct service *svc;
 
-    #ifdef DEBUG
-    printk(KERN_INFO "init module\n");
-    #endif
+int recv_msg(struct socket *sock, void *buf, int len) 
+{
+    struct msghdr msg;
+    struct kvec iov;
+    int size = 0;
 
-    nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
-    if (!nl_sk) {
-        printk(KERN_ALERT "Error creating socket.\n");
-        return -EFAULT;
-    }
+    iov.iov_base = buf;
+    iov.iov_len = len;
 
-    return SUCCESS;
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+    msg.msg_flags = 0;
+    msg.msg_name = 0;
+    msg.msg_namelen = 0;
+
+    size = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+
+    if (size > 0)
+        printk(KERN_ALERT "the message is : %d %d\n",((int*)buf)[0],((int*)buf)[1]);
+
+    return size;
 }
 
-/*
-* This function is called when the module is unloaded
-*/
-void cleanup_module(void) {
-#ifdef DEBUG
-    printk(KERN_INFO "cleanup module\n");
-#endif
+int send_msg(struct socket *sock,void *buf,int len) 
+{
+    struct msghdr msg;
+    struct kvec iov;
+    int size;
+    int j;
 
-    netlink_kernel_release(nl_sk);
+    iov.iov_base = buf;
+    iov.iov_len = len;
 
-    printk(KERN_ALERT "Module has been removed\n");
-    printk(KERN_INFO "---------------------------------------------------\n");
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+    msg.msg_flags = 0;
+    msg.msg_name = 0;
+    msg.msg_namelen = 0;
+
+    size = kernel_sendmsg(sock, &msg, &iov, 1, len);
+
+    if (size > 0)
+        for(j = 0; j<len;j++){
+            printk(KERN_INFO "%d %x\n",j,((int*)buf)[j]);
+        }
+        printk(KERN_INFO "message sent!\n");
+
+    return size;
 }
 
-/*
-* Methods
-*/
-static void nl_recv_msg(struct sk_buff *skb) {
+int start_listen(void)
+{
+    struct socket *acsock;
+    int error, i, size;
+    struct sockaddr_in sin;
+    int buf[2]={0};
+    char data[MAX_SIZE]={0};
 
-    struct sk_buff* skb_out;
-    struct nlmsghdr *nlh;
-    char msg[256] = {0};
-    int msg_size;
-    int pid;
-    int res;
-    int i;
-
-    int start = 0x0000;
-    int length = 100;
-
-    #ifdef DEBUG
-        printk(KERN_INFO "nl_recv_msg\n");
-    #endif
-
-    msg_size = strlen(msg);
-    memset(msg, 0, msg_size);
-
-    nlh = (struct nlmsghdr *)skb->data;
-    pid = nlh->nlmsg_pid;
-
-    strcpy(msg, nlmsg_data(nlh));
-    parse_input(msg, &start, &length);
-
-    printk(KERN_INFO "%d %d\n",start,length);
-
-    /* change the code here */
-    msg_size = copy_data_from_memory(start, length, msg, 256);
-    /* -------------------- */
-
-    skb_out = nlmsg_new(msg_size, 0);
-    if(!skb_out){
-         printk(KERN_ERR "Error allocating message\n");
-         return;
+    error = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP,
+            &svc->listen_socket);
+    if(error<0) {
+        printk(KERN_ERR "cannot create socket\n");
+        return -1;
     }
 
-    nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
-    NETLINK_CB(skb_out).dst_group = 0;
+    sin.sin_addr.s_addr = htonl(INADDR_ANY);
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(PORT);
 
-    for (i = 0; i < msg_size; ++i)
-    {
-        ((char*)nlmsg_data(nlh))[i] = msg[i];
+    error = kernel_bind(svc->listen_socket, (struct sockaddr*)&sin,
+            sizeof(sin));
+    if(error < 0) {
+        printk(KERN_ERR "cannot bind socket, error code: %d\n", error);
+        return -1;
     }
 
-    res = nlmsg_unicast(nl_sk, skb_out, pid);
-    if(res < 0)
-        printk(KERN_ERR "Error sending the message\n");
+    error = kernel_listen(svc->listen_socket,5);
+    if(error<0) {
+        printk(KERN_ERR "cannot listen, error code: %d\n", error);
+        return -1;
+    }
 
-#ifdef DEBUG
-    printk(KERN_INFO "------------");
-    /*for (i = 0; i < length; i++) {
-        printk(KERN_INFO "%d %x\n",i+1, ((char*)nlmsg_data(nlh))[i]);
-    }*/
-    printk(KERN_INFO "Netlink received msg payload: %s\n", (char*)nlmsg_data(nlh));
-#endif
+    i = 0;
+    while (1) {
+        error = kernel_accept(svc->listen_socket, &acsock, 0);
+        if(error<0) {
+            printk(KERN_ERR "cannot accept socket\n");
+            return -1;
+        }
+        printk(KERN_ERR "sock %d accepted\n", i++);
+
+        memset(&buf, 0, 2*sizeof(int));
+        while ((size = recv_msg(acsock, buf, 2*sizeof(int))) > 0) {
+            memset(&data, 0, MAX_SIZE);
+            copy_data_from_memory(buf[0],buf[1],data,MAX_SIZE);
+            send_msg(acsock, data, buf[1]);
+            memset(&buf, 0, 2*sizeof(int));
+        }
+
+        sock_release(acsock);
+    }
+
+    return 0;
 }
 
-void parse_input(char* input, int* start, int* length){
-    sscanf(input,"%08x,%08x",start,length);
+static int __init mod_init(void)
+{
+    svc = kmalloc(sizeof(struct service), GFP_KERNEL);
+    svc->thread = kthread_run((void *)start_listen, NULL, "echo-serv");
+    printk(KERN_ALERT "echo-serv module loaded\n");
+
+        return 0;
+}
+
+static void __exit mod_exit(void)
+{
+    if (svc->listen_socket != NULL) {
+        kernel_sock_shutdown(svc->listen_socket, SHUT_RDWR);
+        sock_release(svc->listen_socket);
+        printk(KERN_ALERT "release socket\n");
+    }
+    
+    kfree(svc);
+    printk(KERN_ALERT "removed echo-serv module\n");
 }
 
 int copy_data_from_memory(int start_address, int length, char* data, int buffer_length){
@@ -123,3 +158,9 @@ int copy_data_from_memory(int start_address, int length, char* data, int buffer_
 
     return count;
 }
+
+module_init(mod_init);
+module_exit(mod_exit);
+MODULE_DESCRIPTION("TCP server in the kernel");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Dor Edelstein");
