@@ -50,14 +50,14 @@ static void nl_recv_msg(struct sk_buff *skb) {
 
     struct sk_buff* skb_out;
     struct nlmsghdr *nlh;
-    char msg[256] = {0};
+    char msg[SIZE] = {0};
     int msg_size;
     int pid;
     int res;
     int i;
 
     int start = 0x0000;
-    int length = 100;
+    int length = 1;
 
     #ifdef DEBUG
         printk(KERN_INFO "nl_recv_msg\n");
@@ -75,7 +75,7 @@ static void nl_recv_msg(struct sk_buff *skb) {
     printk(KERN_INFO "%d %d\n",start,length);
 
     /* change the code here */
-    msg_size = copy_data_from_memory(start, length, msg, 256);
+    msg_size = copy_data_from_memory(start, length, msg, SIZE);
     /* -------------------- */
 
     skb_out = nlmsg_new(msg_size, 0);
@@ -115,10 +115,18 @@ int copy_data_from_memory(int start_address, int length, char* data, int buffer_
 
     for (ram_data = 0; count < length && count < buffer_length; ram_data++ , count++)
     {
-        if((long unsigned int)ram_data % (long unsigned int)PAGE_SIZE == 0){
-            ram_data = phys_to_virt(start_address+count);
-        }
+        //if((long unsigned int)ram_data % (long unsigned int)PAGE_SIZE == 0){
+        if(LAST_READABLE_ADDRESS <= start_address+count)
+            break;
+
+        ram_data = phys_to_virt(start_address+count);
+        //}
+
+
+        printk(KERN_INFO "%x\n", (long unsigned int)ram_data);
+
         data[count] = *((char*)(ram_data)); 
+
     }
 
     return count;

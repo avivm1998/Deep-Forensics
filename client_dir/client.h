@@ -10,7 +10,7 @@
 #include "utilities.h"
 
 #define PORT 1202    /* the port client will be connecting to */
-#define MAXDATASIZE 100 /* max number of bytes we can get at once */
+#define MAXDATASIZE 256 /* max number of bytes we can get at once */
 #define IP "192.168.0.2"
 #define INVALID_INPUT "invalid input"
 #define EXIT "exit"

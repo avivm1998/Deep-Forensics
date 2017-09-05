@@ -17,7 +17,8 @@
 #define DEBUG 1
 #define NETLINK_USER 31
 #define EMPTY_MESSAGE "NO_DATA"
-#define SIZE 1024
+#define SIZE 256
+#define LAST_READABLE_ADDRESS 0x37bfdfff
 
 /*
 * Prototypes

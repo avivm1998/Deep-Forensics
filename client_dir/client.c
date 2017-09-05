@@ -57,6 +57,8 @@ char* parse_input(mem_dump_request* request, char* input) {
     			else {
     				goto invalid_input;
     			}
+                if(request->length > MAXDATASIZE)
+                    goto invalid_input;
     		}
             else {
                 goto invalid_input;
